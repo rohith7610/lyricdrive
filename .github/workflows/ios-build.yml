@@ -32,31 +32,46 @@ jobs:
       - name: Resolve iOS Simulator
         id: sim
         run: |
-          RUNTIME=$(xcrun simctl list runtimes available -j | python3 -c "
-          import json, sys
-          runtimes = json.load(sys.stdin)['runtimes']
-          ios = [r for r in runtimes if r.get('isAvailable') and 'iOS' in r.get('name','')]
-          ios.sort(key=lambda r: r['version'], reverse=True)
-          print(ios[0]['identifier'] if ios else '')
-          ")
-          UDID=$(RUNTIME="$RUNTIME" xcrun simctl list devices available -j | python3 -c "
-          import json, sys, os
-          runtime = os.environ['RUNTIME']
-          data = json.load(sys.stdin)['devices']
-          devices = data.get(runtime, [])
-          iphones = [d for d in devices if d.get('isAvailable') and 'iPhone' in d.get('name','')]
-          for prefer in ('iPhone 16 Pro', 'iPhone 16', 'iPhone 15 Pro', 'iPhone 15', 'iPhone SE'):
+          python3 << 'PYEOF'
+          import json, os, subprocess, sys
+
+          runtimes_json = subprocess.run(
+              ["xcrun", "simctl", "list", "runtimes", "available", "-j"],
+              capture_output=True, text=True, check=True,
+          )
+          runtimes = json.loads(runtimes_json.stdout)["runtimes"]
+          ios = [r for r in runtimes if r.get("isAvailable") and "iOS" in r.get("name", "")]
+          ios.sort(key=lambda r: r["version"], reverse=True)
+          if not ios:
+              print("No iOS runtime found", file=sys.stderr)
+              sys.exit(1)
+          runtime_id = ios[0]["identifier"]
+
+          devices_json = subprocess.run(
+              ["xcrun", "simctl", "list", "devices", "available", "-j"],
+              capture_output=True, text=True, check=True,
+          )
+          devices = json.loads(devices_json.stdout)["devices"].get(runtime_id, [])
+          iphones = [d for d in devices if d.get("isAvailable") and "iPhone" in d.get("name", "")]
+          prefer = ("iPhone 16 Pro", "iPhone 16", "iPhone 15 Pro", "iPhone 15", "iPhone SE")
+          udid = None
+          for name in prefer:
               for d in iphones:
-                  if d['name'].startswith(prefer):
-                      print(d['udid']); sys.exit(0)
-          print(iphones[0]['udid'] if iphones else '')
-          ")
-          if [ -z "$UDID" ]; then
-            echo "No iPhone simulator found on this runner."
-            exit 1
-          fi
-          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          echo "Using simulator UDID: $UDID (runtime: $RUNTIME)"
+                  if d["name"].startswith(name):
+                      udid = d["udid"]
+                      break
+              if udid:
+                  break
+          if not udid and iphones:
+              udid = iphones[0]["udid"]
+          if not udid:
+              print("No iPhone simulator found", file=sys.stderr)
+              sys.exit(1)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"udid={udid}\n")
+          print(f"Using simulator UDID: {udid} (runtime: {runtime_id})")
+          PYEOF
 
       - name: Boot simulator
         run: |
