@@ -40,10 +40,15 @@ targets:
         group: Shared
     settings:
       base:
+        PRODUCT_NAME: LyricDriveWidget
         PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app.widget
         INFOPLIST_FILE: LyricDriveWidget/Info.plist
         CODE_SIGN_ENTITLEMENTS: LyricDriveWidget/LyricDriveWidget.entitlements
         GENERATE_INFOPLIST_FILE: false
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0.0
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
 
   LyricDriveTests:
     type: bundle.unit-test
