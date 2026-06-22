@@ -5,11 +5,6 @@ on:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
-    inputs:
-      build_ipa:
-        description: Build signed IPA for iPhone (requires Apple secrets)
-        type: boolean
-        default: true
 
 env:
   PROJECT: LyricDrive.xcodeproj
@@ -21,6 +16,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Show trigger type
+        run: |
+          echo "Trigger: ${{ github.event_name }}"
+          echo "IPA will be built at the end of this job (same job, not skipped)."
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -104,30 +104,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             -resultBundlePath "$RUNNER_TEMP/TestResults.xcresult"
 
-      - name: IPA build hint (push only)
-        if: github.event_name == 'push'
-        run: |
-          echo "=============================================="
-          echo "device-ipa was SKIPPED — this is normal on git push."
-          echo "To build an IPA for your iPhone:"
-          echo "  Actions → LyricDrive CI → Run workflow → Run workflow"
-          echo "Do NOT use 'Re-run jobs' on a push run."
-          echo "=============================================="
-
-  device-ipa:
-    needs: build-and-test
-    if: github.event_name == 'workflow_dispatch' && inputs.build_ipa
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate Xcode project
-        run: xcodegen generate
-
-      - name: Build unsigned IPA (Sideloadly signs it — no Team ID needed)
+      - name: Build unsigned IPA for iPhone (Sideloadly signs it)
         run: |
           BUILD_DIR="$RUNNER_TEMP/iphoneos-build"
           mkdir -p "$BUILD_DIR"
@@ -164,3 +141,11 @@ jobs:
           name: LyricDrive-ipa
           path: ${{ runner.temp }}/LyricDrive.ipa
           if-no-files-found: error
+
+      - name: Done
+        run: |
+          echo "=============================================="
+          echo "Download LyricDrive-ipa from ARTIFACTS above."
+          echo "Install on iPhone with Sideloadly + Apple ID."
+          echo "No Team ID or GitHub secrets needed."
+          echo "=============================================="
