@@ -17,7 +17,8 @@ final class SettingsViewModel {
     init(themeManager: ThemeManager) {
         self.themeManager = themeManager
         enableLiveActivity = UserDefaults.standard.object(forKey: "enableLiveActivity") as? Bool ?? true
-        enableShazamFallback = UserDefaults.standard.object(forKey: "enableShazamFallback") as? Bool ?? true
+        // Off by default — auto-Shazam often fails with headphones/car audio
+        enableShazamFallback = UserDefaults.standard.object(forKey: "enableShazamFallback") as? Bool ?? false
         autoScrollLyrics = UserDefaults.standard.object(forKey: "autoScrollLyrics") as? Bool ?? true
     }
 

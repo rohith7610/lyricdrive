@@ -16,10 +16,10 @@ struct LyricsView: View {
                 switch viewModel.loadingState {
                 case .idle:
                     EmptyStateView(
-                        title: "No Song Playing",
-                        message: "Start music in Apple Music, Spotify, YouTube Music, or another app.",
-                        actionTitle: "Identify with Shazam",
-                        action: { requestShazam() }
+                        title: "Waiting for Music",
+                        message: viewModel.userHint ?? "Start music in another app, then return here.",
+                        actionTitle: "Detect Song (keeps music playing)",
+                        action: { Task { await viewModel.detectSongWithoutShazam() } }
                     )
                 case .loading, .recognizing:
                     LoadingView(isRecognizing: viewModel.loadingState == .recognizing)
@@ -54,7 +54,10 @@ struct LyricsView: View {
                     }
 
                     Menu {
-                        Button("Identify Song", systemImage: "waveform") {
+                        Button("Refresh Now Playing", systemImage: "arrow.clockwise") {
+                            Task { await viewModel.detectSongWithoutShazam() }
+                        }
+                        Button("Identify with Shazam (may pause music)", systemImage: "waveform") {
                             requestShazam()
                         }
                     } label: {
@@ -65,29 +68,34 @@ struct LyricsView: View {
             .sheet(isPresented: $showShazamSheet) {
                 ShazamPermissionSheet {
                     ShazamPermissionGate.markSeen()
-                    Task { await viewModel.recognizeWithShazam() }
+                    Task { await viewModel.recognizeWithShazam(isAutomatic: false) }
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 4) {
-                    Text("Controls: Apple Music · Use Lock Screen for Spotify/YouTube Music")
+                    Text("Use Detect Song or Search tab · Avoid Shazam if music pauses")
                         .font(.caption2)
                         .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                     MediaControlsBar(
-                    isPlaying: viewModel.isPlaying,
-                    onPlayPause: viewModel.togglePlayPause,
-                    onPrevious: viewModel.skipPrevious,
-                    onNext: viewModel.skipNext
-                )
-                .padding(.bottom, 8)
+                        isPlaying: viewModel.isPlaying,
+                        onPlayPause: viewModel.togglePlayPause,
+                        onPrevious: viewModel.skipPrevious,
+                        onNext: viewModel.skipNext
+                    )
+                    .padding(.bottom, 8)
                 }
             }
+        }
+        .onAppear {
+            viewModel.refreshNowPlaying()
         }
     }
 
     private func requestShazam() {
         if ShazamPermissionGate.hasSeenExplainer {
-            Task { await viewModel.recognizeWithShazam() }
+            Task { await viewModel.recognizeWithShazam(isAutomatic: false) }
         } else {
             showShazamSheet = true
         }

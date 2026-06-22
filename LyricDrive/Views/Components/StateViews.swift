@@ -59,11 +59,19 @@ struct ErrorStateView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
                 .foregroundStyle(.orange)
+
             Text(message)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
                 .padding(.horizontal)
-            Button("Try Shazam", action: retry)
+
+            Text("Best option: open the Search tab and type the song name.")
+                .font(.caption)
+                .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button("Try Shazam (speaker audio)", action: retry)
                 .buttonStyle(.borderedProminent)
         }
     }

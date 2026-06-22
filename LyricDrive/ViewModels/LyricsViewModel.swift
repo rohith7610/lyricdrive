@@ -31,6 +31,7 @@ final class LyricsViewModel {
     var playbackPosition: TimeInterval = 0
     var isFavorite = false
     var detectionSource: SongSource?
+    var userHint: String?
 
     private let nowPlayingService: NowPlayingService
     private let shazamService: ShazamRecognitionService
@@ -107,19 +108,61 @@ final class LyricsViewModel {
             .store(in: &cancellables)
     }
 
+    func refreshNowPlaying() {
+        nowPlayingService.refresh()
+        userHint = nil
+        if nowPlayingService.state.song == nil {
+            updateIdleHint()
+        }
+    }
+
+    /// Reads song info from Control Center / Spotify without using the microphone.
+    func detectSongWithoutShazam() async {
+        refreshNowPlaying()
+
+        if let song = nowPlayingService.state.song {
+            await loadSong(song, source: .nowPlaying)
+            return
+        }
+
+        loadingState = .idle
+        userHint = """
+        Song info still not visible.
+
+        1. Play music in Spotify or Apple Music
+        2. Open Control Center — confirm the song title shows there
+        3. Tap Detect Song again
+
+        Or open the Search tab — it never pauses your music.
+        """
+    }
+
     func loadSong(_ song: Song, source: SongSource = .manualSearch) async {
         currentSong = song
         detectionSource = source
         isFavorite = cacheService.isFavorite(songID: song.id)
         lastSongID = song.id
+        userHint = nil
         await fetchLyrics(for: song)
     }
 
-    func recognizeWithShazam() async {
+    func recognizeWithShazam(isAutomatic: Bool = false) async {
         guard !isShazamRunning else { return }
+
+        // Manual tap: try Now Playing first — no microphone, music keeps playing.
+        if !isAutomatic {
+            nowPlayingService.refresh()
+            if let song = nowPlayingService.state.song {
+                AppLogger.nowPlaying.info("Detected via Now Playing before Shazam")
+                await loadSong(song, source: .nowPlaying)
+                return
+            }
+        }
+
         isShazamRunning = true
         loadingState = .recognizing
         lastShazamAttempt = .now
+        userHint = nil
 
         defer { isShazamRunning = false }
 
@@ -129,8 +172,14 @@ final class LyricsViewModel {
             noMetadataPollCount = 0
             await loadSong(song, source: .shazam)
         } catch {
-            loadingState = .error(error.localizedDescription)
-            AppLogger.shazam.error("Recognition failed: \(error.localizedDescription)")
+            if isAutomatic {
+                loadingState = .idle
+                updateIdleHint()
+                AppLogger.shazam.info("Auto Shazam failed silently: \(error.localizedDescription)")
+            } else {
+                loadingState = .error(error.localizedDescription)
+                AppLogger.shazam.error("Recognition failed: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -155,11 +204,16 @@ final class LyricsViewModel {
 
         guard let song = state.song else {
             noMetadataPollCount += 1
+            if loadingState != .recognizing && loadingState != .loading {
+                loadingState = .idle
+                updateIdleHint()
+            }
             await attemptAutomaticShazamIfNeeded()
             return
         }
 
         noMetadataPollCount = 0
+        userHint = nil
 
         guard song.id != lastSongID else { return }
 
@@ -168,6 +222,26 @@ final class LyricsViewModel {
         detectionSource = .nowPlaying
         isFavorite = cacheService.isFavorite(songID: song.id)
         await fetchLyrics(for: song)
+    }
+
+    private func updateIdleHint() {
+        if nowPlayingService.otherAudioIsPlaying {
+            userHint = """
+            Music is playing but song info isn't visible to LyricDrive.
+
+            1. Open Control Center — confirm the song title shows
+            2. Return here and tap Refresh (⋯ menu)
+            3. Or use the Search tab to find the song
+            """
+        } else {
+            userHint = """
+            1. Start a song in Spotify, Apple Music, or YouTube Music
+            2. Open Control Center to confirm the track name appears
+            3. Return to LyricDrive — lyrics load automatically
+
+            Or use the Search tab to find any song manually.
+            """
+        }
     }
 
     private func attemptAutomaticShazamIfNeeded() async {
@@ -180,7 +254,7 @@ final class LyricsViewModel {
 
         noMetadataPollCount = 0
         AppLogger.shazam.info("Auto Shazam fallback triggered")
-        await recognizeWithShazam()
+        await recognizeWithShazam(isAutomatic: true)
     }
 
     private func fetchLyrics(for song: Song) async {
@@ -191,7 +265,7 @@ final class LyricsViewModel {
 
         loadTask = Task {
             if let cached = cacheService.loadCachedLyrics(for: song, lrcParser: lrcParser) {
-                guard currentSong?.id == requestedSongID || lastSongID == requestedSongID else { return }
+                guard lastSongID == requestedSongID else { return }
                 applyResult(cached, isOffline: false)
             }
 
@@ -210,7 +284,8 @@ final class LyricsViewModel {
                 if let cached = cacheService.loadCachedLyrics(for: song, lrcParser: lrcParser) {
                     applyResult(cached, isOffline: true)
                 } else {
-                    loadingState = .error(error.localizedDescription)
+                    let message = "Lyrics not found for \"\(song.title)\" by \(song.artist). Try the Search tab for a different match."
+                    loadingState = .error(message)
                     AppLogger.lyrics.error("Fetch failed: \(error.localizedDescription)")
                 }
             }

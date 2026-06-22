@@ -10,10 +10,14 @@ enum ShazamError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .microphonePermissionDenied: return "Microphone access is required for audio recognition."
-        case .noMatch: return "Could not identify the song."
-        case .recognitionFailed(let error): return error.localizedDescription
-        case .alreadyRunning: return "Recognition already in progress."
+        case .microphonePermissionDenied:
+            return "Microphone access is required. Enable it in Settings → LyricDrive → Microphone."
+        case .noMatch:
+            return "Shazam couldn't hear the song. Use the Search tab instead — it won't pause your music."
+        case .recognitionFailed(let error):
+            return error.localizedDescription
+        case .alreadyRunning:
+            return "Recognition already in progress."
         }
     }
 }
@@ -22,7 +26,7 @@ actor ShazamRecognitionService {
     private var isRunning = false
     private var activeEngine: AVAudioEngine?
 
-    func recognize(duration: TimeInterval = 5.0) async throws -> Song {
+    func recognize(duration: TimeInterval = 8.0) async throws -> Song {
         guard !isRunning else { throw ShazamError.alreadyRunning }
         isRunning = true
         defer {
@@ -33,7 +37,21 @@ actor ShazamRecognitionService {
         let granted = await requestMicrophonePermission()
         guard granted else { throw ShazamError.microphonePermissionDenied }
 
-        AppLogger.shazam.info("Starting Shazam recognition")
+        let audioSession = AVAudioSession.sharedInstance()
+        let savedCategory = audioSession.category
+        let savedMode = audioSession.mode
+        let savedOptions = audioSession.categoryOptions
+
+        defer {
+            restoreAudioSession(
+                category: savedCategory,
+                mode: savedMode,
+                options: savedOptions
+            )
+        }
+
+        try configureAudioSessionForShazam()
+        AppLogger.shazam.info("Starting Shazam recognition (\(duration)s)")
 
         return try await withCheckedThrowingContinuation { continuation in
             let delegate = ShazamDelegate(continuation: continuation)
@@ -59,13 +77,42 @@ actor ShazamRecognitionService {
         }
     }
 
+    /// Mix with other apps so Spotify / Apple Music keep playing.
+    private func configureAudioSessionForShazam() throws {
+        let audioSession = AVAudioSession.sharedInstance()
+        if #available(iOS 17.0, *) {
+            try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
+        }
+        try audioSession.setCategory(
+            .playAndRecord,
+            mode: .measurement,
+            options: [.mixWithOthers, .allowBluetooth, .allowBluetoothA2DP]
+        )
+        // Do not use defaultToSpeaker — it can reroute music away from headphones/speakers.
+        try audioSession.setActive(true, options: [])
+    }
+
+    /// Never call setActive(false) — that pauses other apps' music.
+    private func restoreAudioSession(
+        category: AVAudioSession.Category,
+        mode: AVAudioSession.Mode,
+        options: AVAudioSession.CategoryOptions
+    ) {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(category, mode: mode, options: options)
+        } catch {
+            AppLogger.shazam.error("Could not restore audio session: \(error.localizedDescription)")
+        }
+    }
+
     private func setEngine(_ engine: AVAudioEngine) {
         activeEngine = engine
     }
 
     private func stopEngine() {
-        activeEngine?.inputNode.removeTap(onBus: 0)
-        activeEngine?.stop()
+        guard let engine = activeEngine else { return }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
         activeEngine = nil
     }
 
@@ -86,13 +133,12 @@ actor ShazamRecognitionService {
         let inputNode = engine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 8192, format: format) { buffer, _ in
             session.matchStreamingBuffer(buffer, at: nil)
         }
 
         try engine.start()
         await onStart(engine)
-
         try await Task.sleep(for: .seconds(duration))
     }
 }
