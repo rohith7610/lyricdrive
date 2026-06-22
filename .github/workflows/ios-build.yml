@@ -1,0 +1,92 @@
+name: LyricDrive CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (Simulator)
+        run: |
+          xcodebuild build \
+            -scheme LyricDrive \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests
+        run: |
+          xcodebuild test \
+            -scheme LyricDrive \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO
+
+  # Optional: build a signed IPA for your iPhone.
+  # Add GitHub secrets: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, TEAM_ID
+  device-ipa:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build archive
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_ID" ]; then
+            echo "Skipping signed build — set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, TEAM_ID secrets."
+            exit 0
+          fi
+          xcodebuild archive \
+            -scheme LyricDrive \
+            -archivePath ${{ runner.temp }}/LyricDrive.xcarchive \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            -allowProvisioningUpdates
+
+      - name: Export IPA
+        if: env.APPLE_ID != ''
+        env:
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          cat > ${{ runner.temp }}/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>development</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath ${{ runner.temp }}/LyricDrive.xcarchive \
+            -exportPath ${{ runner.temp }}/export \
+            -exportOptionsPlist ${{ runner.temp }}/ExportOptions.plist \
+            -allowProvisioningUpdates
+
+      - name: Upload IPA artifact
+        if: env.APPLE_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: LyricDrive-ipa
+          path: ${{ runner.temp }}/export/*.ipa

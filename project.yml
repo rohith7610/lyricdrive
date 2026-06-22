@@ -1,0 +1,67 @@
+name: LyricDrive
+options:
+  bundleIdPrefix: com.lyricdrive
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: true
+
+targets:
+  LyricDrive:
+    type: application
+    platform: iOS
+    sources:
+      - LyricDrive
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app
+        INFOPLIST_FILE: LyricDrive/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LyricDrive/Resources/LyricDrive.entitlements
+        GENERATE_INFOPLIST_FILE: false
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0.0
+    dependencies:
+      - target: LyricDriveWidget
+        embed: true
+
+  LyricDriveWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - LyricDriveWidget
+      - path: LyricDrive/Shared
+        group: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app.widget
+        INFOPLIST_FILE: LyricDriveWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LyricDriveWidget/LyricDriveWidget.entitlements
+        GENERATE_INFOPLIST_FILE: false
+
+  LyricDriveTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - LyricDriveTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app.tests
+        GENERATE_INFOPLIST_FILE: true
+    dependencies:
+      - target: LyricDrive
+
+schemes:
+  LyricDrive:
+    build:
+      targets:
+        LyricDrive: all
+        LyricDriveTests: [test]
+    test:
+      targets:
+        - LyricDriveTests
