@@ -72,12 +72,19 @@ final class CarPlayLyricsTemplate {
         let vm = container.lyricsViewModel
         let fontPreset = container.themeManager.fontSizePreset
 
+        let isLoading: Bool = {
+            switch vm.loadingState {
+            case .loading, .recognizing: return true
+            default: return false
+            }
+        }()
+
         let snapshot = CarPlaySnapshot(
             title: vm.currentSong?.title,
             artist: vm.currentSong?.artist,
             lyricLine: vm.activeLine?.text,
             isPlaying: vm.isPlaying,
-            isLoading: vm.loadingState == .loading || vm.loadingState == .recognizing
+            isLoading: isLoading
         )
 
         guard snapshot != lastSnapshot else { return }

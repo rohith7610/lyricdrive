@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  PROJECT: LyricDrive.xcodeproj
+  SCHEME: LyricDrive
+
 jobs:
   build-and-test:
     runs-on: macos-15
@@ -13,28 +17,73 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show Xcode version
+        run: xcodebuild -version
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: List available simulators
+        run: xcrun simctl list devices available
+
+      - name: Resolve iOS Simulator
+        id: sim
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes available -j | python3 -c "
+          import json, sys
+          runtimes = json.load(sys.stdin)['runtimes']
+          ios = [r for r in runtimes if r.get('isAvailable') and 'iOS' in r.get('name','')]
+          ios.sort(key=lambda r: r['version'], reverse=True)
+          print(ios[0]['identifier'] if ios else '')
+          ")
+          UDID=$(RUNTIME="$RUNTIME" xcrun simctl list devices available -j | python3 -c "
+          import json, sys, os
+          runtime = os.environ['RUNTIME']
+          data = json.load(sys.stdin)['devices']
+          devices = data.get(runtime, [])
+          iphones = [d for d in devices if d.get('isAvailable') and 'iPhone' in d.get('name','')]
+          for prefer in ('iPhone 16 Pro', 'iPhone 16', 'iPhone 15 Pro', 'iPhone 15', 'iPhone SE'):
+              for d in iphones:
+                  if d['name'].startswith(prefer):
+                      print(d['udid']); sys.exit(0)
+          print(iphones[0]['udid'] if iphones else '')
+          ")
+          if [ -z "$UDID" ]; then
+            echo "No iPhone simulator found on this runner."
+            exit 1
+          fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Using simulator UDID: $UDID (runtime: $RUNTIME)"
+
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "${{ steps.sim.outputs.udid }}" 2>/dev/null || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
+
       - name: Build (Simulator)
         run: |
           xcodebuild build \
-            -scheme LyricDrive \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            CODE_SIGNING_ALLOWED=NO
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
       - name: Run unit tests
         run: |
           xcodebuild test \
-            -scheme LyricDrive \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            CODE_SIGNING_ALLOWED=NO
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            -resultBundlePath "$RUNNER_TEMP/TestResults.xcresult"
 
-  # Optional: build a signed IPA for your iPhone.
-  # Add GitHub secrets: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, TEAM_ID
   device-ipa:
     if: github.event_name == 'workflow_dispatch'
     runs-on: macos-15
@@ -47,29 +96,27 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build archive
+      - name: Build and export IPA
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
-          if [ -z "$APPLE_ID" ]; then
-            echo "Skipping signed build — set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, TEAM_ID secrets."
+          if [ -z "$APPLE_ID" ] || [ -z "$TEAM_ID" ]; then
+            echo "Skipping signed build — add APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and TEAM_ID secrets."
             exit 0
           fi
+
           xcodebuild archive \
+            -project LyricDrive.xcodeproj \
             -scheme LyricDrive \
-            -archivePath ${{ runner.temp }}/LyricDrive.xcarchive \
+            -archivePath "$RUNNER_TEMP/LyricDrive.xcarchive" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
             -allowProvisioningUpdates
 
-      - name: Export IPA
-        if: env.APPLE_ID != ''
-        env:
-          TEAM_ID: ${{ secrets.TEAM_ID }}
-        run: |
-          cat > ${{ runner.temp }}/ExportOptions.plist <<EOF
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
@@ -78,15 +125,19 @@ jobs:
             <key>signingStyle</key><string>automatic</string>
           </dict></plist>
           EOF
+
           xcodebuild -exportArchive \
-            -archivePath ${{ runner.temp }}/LyricDrive.xcarchive \
-            -exportPath ${{ runner.temp }}/export \
-            -exportOptionsPlist ${{ runner.temp }}/ExportOptions.plist \
+            -archivePath "$RUNNER_TEMP/LyricDrive.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -allowProvisioningUpdates
 
+          ls -la "$RUNNER_TEMP/export"
+
       - name: Upload IPA artifact
-        if: env.APPLE_ID != ''
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: LyricDrive-ipa
           path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: ignore

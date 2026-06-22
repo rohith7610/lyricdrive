@@ -114,6 +114,7 @@ Services like **GitHub Codespaces does NOT support Xcode**. You still need a rea
 | Shazam fails | Reduce background noise; play music louder; try manual Search |
 | Widget shows placeholder | Open app once while music plays (shared App Group data) |
 | Install expires in 7 days | Re-run Sideloadly or GitHub IPA workflow |
+| GitHub Actions exit code 70 | Fixed in latest workflow — push again; was invalid `OS=latest` simulator |
 
 ---
 
