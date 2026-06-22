@@ -36,10 +36,12 @@ struct SettingsView: View {
 
                 Section("Detection") {
                     Toggle("Auto Shazam Fallback", isOn: $settings.enableShazamFallback)
-                    Text("If Now Playing metadata is missing for a few seconds, LyricDrive listens briefly to identify the song.")
+                    Text("Keep OFF if Shazam pauses your music. Use Detect Song or Search instead.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                NowPlayingDiagnosticsSection()
 
                 Section("Live Activity") {
                     Toggle("Lock Screen & Dynamic Island", isOn: $settings.enableLiveActivity)

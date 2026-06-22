@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(LyricsViewModel.self) private var lyricsViewModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = 0
 
     private var startupError: String? {
@@ -36,6 +37,11 @@ struct ContentView: View {
                     .background(.orange.opacity(0.9))
                     .foregroundStyle(.white)
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            AppDependencyContainer.shared.nowPlayingService.refresh()
+            Task { await lyricsViewModel.detectSongWithoutShazam() }
         }
     }
 

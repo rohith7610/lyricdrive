@@ -1,6 +1,6 @@
 import SwiftUI
-import SwiftData
-import UIKit
+import AVFoundation
+import MediaPlayer
 
 @MainActor
 final class AppDependencyContainer {
@@ -67,8 +67,25 @@ final class AppDependencyContainer {
     }
 
     func configure(application: UIApplication) {
+        configureAudioSessionForMediaReading()
         nowPlayingService.startMonitoring()
         lyricsViewModel.start()
+        requestMediaLibraryAccessIfNeeded()
+    }
+
+    private func requestMediaLibraryAccessIfNeeded() {
+        MPMediaLibrary.requestAuthorization { [weak self] status in
+            Task { @MainActor in
+                AppLogger.nowPlaying.info("Media library authorization: \(status.rawValue)")
+                self?.nowPlayingService.refresh()
+            }
+        }
+    }
+
+    private func configureAudioSessionForMediaReading() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+        try? session.setActive(true)
     }
 
     private static func makeModelContainer() -> Result<ModelContainer, Error> {

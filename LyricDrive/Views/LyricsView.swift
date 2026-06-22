@@ -89,7 +89,7 @@ struct LyricsView: View {
             }
         }
         .onAppear {
-            viewModel.refreshNowPlaying()
+            Task { await viewModel.detectSongWithoutShazam() }
         }
     }
 

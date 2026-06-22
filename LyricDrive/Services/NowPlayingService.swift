@@ -4,68 +4,104 @@ import Combine
 import UIKit
 import AVFoundation
 
+struct NowPlayingDiagnostics: Equatable {
+    var lastRefresh: Date = .distantPast
+    var hasNowPlayingDictionary: Bool = false
+    var systemPlaybackState: String = "unknown"
+    var otherAudioIsPlaying: Bool = false
+    var appleMusicItemTitle: String?
+    var extractedTitle: String?
+    var extractedArtist: String?
+    var rawKeys: [String] = []
+    var rawPreview: String = ""
+
+    static let empty = NowPlayingDiagnostics()
+}
+
 @MainActor
 final class NowPlayingService: ObservableObject {
     @Published private(set) var state: NowPlayingState = .empty
     @Published private(set) var otherAudioIsPlaying = false
+    @Published private(set) var diagnostics = NowPlayingDiagnostics.empty
 
-    private var pollTimer: Timer?
+    private var pollTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+    private let remoteObserver = RemoteMediaObserver()
     private var lastSongFingerprint: String?
     private var lastPosition: TimeInterval = 0
-    private var lastPositionChangeDate = Date()
 
-    private let pollInterval: TimeInterval = 0.75
+    private let pollInterval: TimeInterval = 0.5
 
     func startMonitoring() {
-        UIApplication.shared.beginReceivingRemoteControlEvents()
+        remoteObserver.startObserving { [weak self] in
+            Task { @MainActor in self?.refresh() }
+        }
 
         let center = NotificationCenter.default
-
         center.publisher(for: UIApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in self?.refresh() }
             .store(in: &cancellables)
-
         center.publisher(for: UIApplication.willEnterForegroundNotification)
             .sink { [weak self] _ in self?.refresh() }
             .store(in: &cancellables)
-
         center.publisher(for: .MPMusicPlayerControllerNowPlayingItemDidChange)
             .merge(with: center.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange))
             .sink { [weak self] _ in self?.refresh() }
             .store(in: &cancellables)
 
-        pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+        pollTask?.cancel()
+        pollTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                self.refresh()
+                try? await Task.sleep(for: .seconds(self.pollInterval))
+            }
         }
 
         refresh()
-        AppLogger.nowPlaying.info("Now Playing monitoring started")
+        AppLogger.nowPlaying.info("Now Playing monitoring started (task poll \(pollInterval)s)")
     }
 
     func stopMonitoring() {
-        pollTimer?.invalidate()
-        pollTimer = nil
+        pollTask?.cancel()
+        pollTask = nil
     }
 
     func refresh() {
         let info = MPNowPlayingInfoCenter.default().nowPlayingInfo
-        let song = extractSong(from: info)
+        var song = extractSong(from: info)
+
+        if song == nil, let appleMusicSong = extractFromAppleMusicPlayer() {
+            song = appleMusicSong
+        }
+
         let rate = info?[MPNowPlayingInfoPropertyPlaybackRate] as? Double ?? 0
         let position = info?[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? TimeInterval ?? 0
+        let systemState = MPNowPlayingInfoCenter.default().playbackState
 
         otherAudioIsPlaying = !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
 
-        var isPlaying = rate > 0
-        if !isPlaying, song != nil, abs(position - lastPosition) > 0.4 {
+        var isPlaying: Bool
+        switch systemState {
+        case .playing:
+            isPlaying = true
+        case .paused, .stopped, .interrupted:
+            isPlaying = false
+        @unknown default:
+            isPlaying = rate > 0
+        }
+
+        if !isPlaying, song != nil, abs(position - lastPosition) > 0.3 {
             isPlaying = true
         }
-        if !isPlaying, song != nil, otherAudioIsPlaying, rate >= 0 {
+        if !isPlaying, song != nil, otherAudioIsPlaying {
+            isPlaying = true
+        }
+        if !isPlaying, rate > 0 {
             isPlaying = true
         }
 
         if abs(position - lastPosition) > 0.1 {
-            lastPositionChangeDate = Date()
             lastPosition = position
         }
 
@@ -83,44 +119,170 @@ final class NowPlayingService: ObservableObject {
             playbackRate: rate > 0 ? rate : (isPlaying ? 1.0 : 0),
             isPlaying: isPlaying
         )
+
+        diagnostics = buildDiagnostics(
+            info: info,
+            song: song,
+            systemState: systemState
+        )
     }
 
     var hasMetadata: Bool { state.song != nil }
 
-    private func extractSong(from info: [String: Any]?) -> Song? {
-        guard let info else { return nil }
+    private func buildDiagnostics(
+        info: [String: Any]?,
+        song: Song?,
+        systemState: MPNowPlayingPlaybackState
+    ) -> NowPlayingDiagnostics {
+        var d = NowPlayingDiagnostics()
+        d.lastRefresh = .now
+        d.hasNowPlayingDictionary = info != nil && !(info?.isEmpty ?? true)
+        d.otherAudioIsPlaying = otherAudioIsPlaying
+        d.extractedTitle = song?.title
+        d.extractedArtist = song?.artist
+        d.appleMusicItemTitle = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem?.title
+        d.systemPlaybackState = playbackStateLabel(systemState)
+        d.rawKeys = info?.keys.sorted() ?? []
 
-        var title = (info[MPMediaItemPropertyTitle] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        var artist = (info[MPMediaItemPropertyArtist] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let album = info[MPMediaItemPropertyAlbumTitle] as? String
-        let duration = info[MPMediaItemPropertyPlaybackDuration] as? TimeInterval
+        if let info {
+            let lines = info.map { key, value in
+                let rendered: String
+                if let s = value as? String { rendered = s }
+                else if let n = value as? NSNumber { rendered = n.stringValue }
+                else { rendered = String(describing: value) }
+                return "\(key): \(rendered.prefix(80))"
+            }.sorted()
+            d.rawPreview = lines.joined(separator: "\n")
+        } else {
+            d.rawPreview = "(MPNowPlayingInfoCenter returned nil — iOS is not sharing song data with LyricDrive)"
+        }
+        return d
+    }
 
+    private func playbackStateLabel(_ state: MPNowPlayingPlaybackState) -> String {
+        switch state {
+        case .unknown: return "unknown"
+        case .playing: return "playing"
+        case .paused: return "paused"
+        case .stopped: return "stopped"
+        case .interrupted: return "interrupted"
+        @unknown default: return "other"
+        }
+    }
+
+    private func extractFromAppleMusicPlayer() -> Song? {
+        let player = MPMusicPlayerController.systemMusicPlayer
+        guard let item = player.nowPlayingItem else { return nil }
+
+        let title = item.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !title.isEmpty else { return nil }
 
-        if (artist == nil || artist?.isEmpty == true), title.contains(" - ") {
-            let parts = title.split(separator: "-", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+        return Song(
+            title: title,
+            artist: item.artist ?? item.albumArtist ?? "Unknown Artist",
+            album: item.albumTitle,
+            duration: item.playbackDuration,
+            source: .nowPlaying
+        )
+    }
+
+    private func extractSong(from info: [String: Any]?) -> Song? {
+        guard let info, !info.isEmpty else { return nil }
+
+        var title = stringValue(in: info, keys: [
+            MPMediaItemPropertyTitle,
+            "title",
+            "Title",
+            "kMRMediaRemoteNowPlayingInfoTitle"
+        ])
+        var artist = stringValue(in: info, keys: [
+            MPMediaItemPropertyArtist,
+            MPMediaItemPropertyAlbumArtist,
+            "artist",
+            "Artist",
+            "kMRMediaRemoteNowPlayingInfoArtist"
+        ])
+        let album = stringValue(in: info, keys: [MPMediaItemPropertyAlbumTitle, "album", "Album"])
+        let duration = numericValue(in: info, keys: [MPMediaItemPropertyPlaybackDuration])
+
+        if title == nil {
+            title = guessTitleFromAllKeys(info)
+        }
+        if artist == nil {
+            artist = guessArtistFromAllKeys(info)
+        }
+
+        guard var resolvedTitle = title, !resolvedTitle.isEmpty else { return nil }
+
+        if (artist == nil || artist?.isEmpty == true), resolvedTitle.contains(" - ") {
+            let parts = resolvedTitle.split(separator: "-", maxSplits: 1).map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
             if parts.count == 2 {
                 artist = String(parts[0])
-                title = String(parts[1])
+                resolvedTitle = String(parts[1])
             }
         }
 
-        if (artist == nil || artist?.isEmpty == true),
-           let albumArtist = info[MPMediaItemPropertyAlbumArtist] as? String,
-           !albumArtist.isEmpty {
-            artist = albumArtist
+        if (artist == nil || artist?.isEmpty == true), resolvedTitle.contains(" — ") {
+            let parts = resolvedTitle.split(separator: "—", maxSplits: 1).map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            if parts.count == 2 {
+                artist = String(parts[0])
+                resolvedTitle = String(parts[1])
+            }
         }
 
         let resolvedArtist = (artist?.isEmpty == false) ? artist! : "Unknown Artist"
 
         return Song(
-            title: title,
+            title: resolvedTitle,
             artist: resolvedArtist,
             album: album,
             duration: duration,
             source: .nowPlaying
         )
+    }
+
+    private func stringValue(in info: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let value = info[key] as? String {
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
+            }
+        }
+        return nil
+    }
+
+    private func numericValue(in info: [String: Any], keys: [String]) -> TimeInterval? {
+        for key in keys {
+            if let value = info[key] as? TimeInterval { return value }
+            if let value = info[key] as? Double { return value }
+            if let value = info[key] as? NSNumber { return value.doubleValue }
+        }
+        return nil
+    }
+
+    private func guessTitleFromAllKeys(_ info: [String: Any]) -> String? {
+        for (key, value) in info {
+            guard let str = value as? String else { continue }
+            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lower = key.lowercased()
+            if lower.contains("title") || lower == "name" { return trimmed }
+        }
+        return nil
+    }
+
+    private func guessArtistFromAllKeys(_ info: [String: Any]) -> String? {
+        for (key, value) in info {
+            guard let str = value as? String else { continue }
+            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lower = key.lowercased()
+            if lower.contains("artist") { return trimmed }
+        }
+        return nil
     }
 }
