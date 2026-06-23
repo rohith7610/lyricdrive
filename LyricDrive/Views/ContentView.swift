@@ -3,14 +3,14 @@ import SwiftUI
 struct ContentView: View {
     @Environment(LyricsViewModel.self) private var lyricsViewModel
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab = 0
+    @Bindable private var tabRouter = AppDependencyContainer.shared.tabRouter
 
     private var startupError: String? {
         AppDependencyContainer.shared.startupError
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $tabRouter.selectedTab) {
             LyricsView()
                 .tabItem { Label("Lyrics", systemImage: "music.note.list") }
                 .tag(0)
@@ -41,6 +41,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             AppDependencyContainer.shared.nowPlayingService.refresh()
+            guard !lyricsViewModel.hasDisplayedLyrics else { return }
             Task { await lyricsViewModel.detectSongWithoutShazam() }
         }
     }

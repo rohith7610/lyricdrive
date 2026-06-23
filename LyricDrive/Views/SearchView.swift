@@ -4,7 +4,6 @@ struct SearchView: View {
     @Environment(SearchViewModel.self) private var viewModel
     @Environment(LyricsViewModel.self) private var lyricsViewModel
     @Environment(ThemeManager.self) private var themeManager
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -12,8 +11,17 @@ struct SearchView: View {
         NavigationStack {
             List {
                 Section {
+                    Text("1. Search for your song and tap a result.")
+                    Text("2. Lyrics appear on the Lyrics tab.")
+                    Text("3. On CarPlay, open LyricDrive — the Lyrics tab shows the current line while you drive.")
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("How to load lyrics")
+                }
+
+                Section {
                     HStack {
-                        TextField("Search artist or song", text: $viewModel.query)
+                        TextField("Artist and song name", text: $viewModel.query)
                             .textInputAutocapitalization(.words)
                             .submitLabel(.search)
                             .onSubmit { Task { await viewModel.search() } }
@@ -36,16 +44,16 @@ struct SearchView: View {
                     }
                 }
 
-                Section("Results") {
+                Section("Results — tap to show lyrics") {
                     if viewModel.results.isEmpty && !viewModel.isSearching {
-                        Text("Search for a song to load lyrics manually.")
+                        Text("Example: \"Taylor Swift Cruel Summer\"")
                             .foregroundStyle(.secondary)
                     }
 
                     ForEach(viewModel.results) { song in
                         Button {
                             Task {
-                                await lyricsViewModel.loadSong(song, source: .manualSearch)
+                                await lyricsViewModel.loadSongFromSearch(song)
                             }
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
@@ -61,13 +69,6 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("Search")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Shazam") {
-                        Task { await lyricsViewModel.recognizeWithShazam() }
-                    }
-                }
-            }
         }
     }
 }

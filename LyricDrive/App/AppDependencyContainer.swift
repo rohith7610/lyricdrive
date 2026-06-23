@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import AVFoundation
 import MediaPlayer
 
@@ -23,10 +24,12 @@ final class AppDependencyContainer {
     let searchViewModel: SearchViewModel
     let favoritesViewModel: FavoritesViewModel
     let settingsViewModel: SettingsViewModel
+    let tabRouter: TabRouter
 
     private init() {
         themeManager = ThemeManager()
         settingsViewModel = SettingsViewModel(themeManager: themeManager)
+        tabRouter = TabRouter()
 
         switch Self.makeModelContainer() {
         case .success(let container):
@@ -62,7 +65,8 @@ final class AppDependencyContainer {
             mediaControlService: mediaControlService,
             liveActivityManager: liveActivityManager,
             favoritesViewModel: favoritesViewModel,
-            settings: settingsViewModel
+            settings: settingsViewModel,
+            tabRouter: tabRouter
         )
     }
 

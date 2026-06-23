@@ -43,6 +43,7 @@ final class LyricsViewModel {
     private let liveActivityManager: LiveActivityManager
     private let favoritesViewModel: FavoritesViewModel
     private let settings: SettingsViewModel
+    private let tabRouter: TabRouter
 
     private var cancellables = Set<AnyCancellable>()
     private var loadTask: Task<Void, Never>?
@@ -61,7 +62,8 @@ final class LyricsViewModel {
         mediaControlService: MediaControlService,
         liveActivityManager: LiveActivityManager,
         favoritesViewModel: FavoritesViewModel,
-        settings: SettingsViewModel
+        settings: SettingsViewModel,
+        tabRouter: TabRouter
     ) {
         self.nowPlayingService = nowPlayingService
         self.shazamService = shazamService
@@ -73,6 +75,7 @@ final class LyricsViewModel {
         self.liveActivityManager = liveActivityManager
         self.favoritesViewModel = favoritesViewModel
         self.settings = settings
+        self.tabRouter = tabRouter
     }
 
     func start() {
@@ -125,6 +128,10 @@ final class LyricsViewModel {
             return
         }
 
+        if hasDisplayedLyrics {
+            return
+        }
+
         loadingState = .idle
         userHint = """
         Song info still not visible.
@@ -143,6 +150,31 @@ final class LyricsViewModel {
         isFavorite = cacheService.isFavorite(songID: song.id)
         lastSongID = song.id
         userHint = nil
+        await fetchLyrics(for: song)
+    }
+
+    /// Search results include LRCLIB track IDs — fetch lyrics directly for reliable loading.
+    func loadSongFromSearch(_ song: Song) async {
+        tabRouter.showLyricsTab()
+        currentSong = song
+        detectionSource = .manualSearch
+        isFavorite = cacheService.isFavorite(songID: song.id)
+        lastSongID = song.id
+        userHint = nil
+        loadingState = .loading
+
+        if song.id.hasPrefix("lrclib-"),
+           let trackID = Int(song.id.dropFirst("lrclib-".count)) {
+            do {
+                let result = try await lyricsAPIService.fetchLyricsForTrackID(trackID, song: song)
+                cacheService.cache(result: result, lrcParser: lrcParser)
+                applyResult(result, isOffline: false)
+                return
+            } catch {
+                AppLogger.lyrics.error("Direct track fetch failed: \(error.localizedDescription)")
+            }
+        }
+
         await fetchLyrics(for: song)
     }
 
@@ -204,7 +236,9 @@ final class LyricsViewModel {
 
         guard let song = state.song else {
             noMetadataPollCount += 1
-            if loadingState != .recognizing && loadingState != .loading {
+            if !hasDisplayedLyrics,
+               loadingState != .recognizing,
+               loadingState != .loading {
                 loadingState = .idle
                 updateIdleHint()
             }
@@ -298,13 +332,31 @@ final class LyricsViewModel {
         parsedLyrics = result.lyrics
         syncEngine.setLyrics(result.lyrics)
         loadingState = isOffline ? .offline(result) : .loaded(result)
+        tabRouter.showLyricsTab()
+        favoritesViewModel.refresh()
         publishSharedState()
         startLiveActivityIfNeeded()
     }
 
+    var hasDisplayedLyrics: Bool {
+        switch loadingState {
+        case .loaded, .offline:
+            return currentSong != nil && (!parsedLyrics.lines.isEmpty || parsedLyrics.plainText != nil)
+        default:
+            return false
+        }
+    }
+
     private func publishSharedState() {
         guard let song = currentSong else { return }
-        let line = activeLine?.text ?? song.title
+        let line: String
+        if let active = activeLine?.text {
+            line = active
+        } else if let plain = parsedLyrics.plainText {
+            line = String(plain.prefix(120))
+        } else {
+            line = song.title
+        }
         SharedLyricStore.write(
             SharedLyricSnapshot(
                 songTitle: song.title,
@@ -342,12 +394,22 @@ final class LyricsViewModel {
     }
 
     var activeLine: LyricLine? {
-        guard let index = activeLineIndex else { return nil }
-        return parsedLyrics.lines[index]
+        if let index = activeLineIndex, parsedLyrics.lines.indices.contains(index) {
+            return parsedLyrics.lines[index]
+        }
+        if parsedLyrics.isSynced, let first = parsedLyrics.lines.first {
+            return first
+        }
+        return nil
+    }
+
+    var displayLineIndex: Int {
+        activeLineIndex ?? 0
     }
 
     private var nextLineText: String? {
-        guard let index = activeLineIndex, index + 1 < parsedLyrics.lines.count else { return nil }
+        let index = displayLineIndex
+        guard index + 1 < parsedLyrics.lines.count else { return nil }
         return parsedLyrics.lines[index + 1].text
     }
 

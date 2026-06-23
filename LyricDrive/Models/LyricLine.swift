@@ -23,8 +23,9 @@ struct ParsedLyrics: Equatable, Sendable {
 
     func activeLineIndex(at position: TimeInterval) -> Int? {
         guard isSynced, !lines.isEmpty else { return nil }
+        guard position >= 0 else { return nil }
 
-        var index: Int?
+        var index = 0
         for (i, line) in lines.enumerated() where line.timestamp <= position {
             index = i
         }

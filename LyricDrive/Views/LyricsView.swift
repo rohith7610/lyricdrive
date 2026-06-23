@@ -89,6 +89,7 @@ struct LyricsView: View {
             }
         }
         .onAppear {
+            guard !viewModel.hasDisplayedLyrics else { return }
             Task { await viewModel.detectSongWithoutShazam() }
         }
     }

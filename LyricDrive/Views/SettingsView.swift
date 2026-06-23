@@ -67,8 +67,17 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("CarPlay") {
+                    Text("Connect your iPhone to CarPlay and open LyricDrive on the car screen. The Lyrics tab shows the current line, next lines, and syncs while you drive.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("First search for a song on your iPhone (Search tab), then CarPlay displays synced lyrics.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("About") {
-                    LabeledContent("Version", value: "1.0.0")
+                    LabeledContent("Version", value: "1.1.1")
                     LabeledContent("Lyrics Provider", value: "LRCLIB")
                     LabeledContent("Use", value: "Personal")
                 }

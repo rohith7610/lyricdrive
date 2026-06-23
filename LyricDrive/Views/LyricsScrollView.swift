@@ -16,19 +16,24 @@ struct LyricsScrollView: View {
                         ForEach(Array(lyrics.lines.enumerated()), id: \.element.id) { index, line in
                             LyricLineView(
                                 text: line.text,
-                                isActive: index == activeIndex
+                                isActive: index == (activeIndex ?? 0)
                             )
                             .id(index)
                         }
-                        Color.clear.frame(height: 200)
+                        Color.clear.frame(height: 120)
                     }
                     .padding(.horizontal, 24)
                 }
                 .scrollIndicators(.hidden)
+                .onAppear {
+                    if autoScroll, !lyrics.lines.isEmpty {
+                        proxy.scrollTo(activeIndex ?? 0, anchor: .center)
+                    }
+                }
                 .onChange(of: activeIndex) { _, newIndex in
-                    guard autoScroll, let newIndex else { return }
+                    guard autoScroll else { return }
                     withAnimation(.easeInOut(duration: 0.35)) {
-                        proxy.scrollTo(newIndex, anchor: .center)
+                        proxy.scrollTo(newIndex ?? 0, anchor: .center)
                     }
                 }
             }
