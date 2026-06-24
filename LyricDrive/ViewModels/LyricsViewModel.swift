@@ -85,8 +85,8 @@ final class LyricsViewModel {
     }
 
     var displayLyrics: ParsedLyrics {
-        if showEnglishTranslation, let translatedLyrics {
-            return translatedLyrics
+        if showEnglishTranslation, let translated = translatedLyrics {
+            return translated
         }
         return parsedLyrics
     }
@@ -102,7 +102,7 @@ final class LyricsViewModel {
             return
         }
 
-        if let translatedLyrics {
+        if let cachedTranslation = translatedLyrics {
             showEnglishTranslation = true
             translationMessage = nil
             publishSharedState()
@@ -116,7 +116,7 @@ final class LyricsViewModel {
 
         do {
             let translated = try await translationService.translateLyrics(parsedLyrics)
-            translatedLyrics = translated
+            self.translatedLyrics = translated
             showEnglishTranslation = true
             translationMessage = "Showing English translation"
             publishSharedState()

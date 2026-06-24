@@ -44,10 +44,10 @@ final class CarPlayLyricsCoordinator {
         pushRootTemplate(animated: false)
         pollTask?.cancel()
         pollTask = Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self = self else { return }
             while !Task.isCancelled {
                 self.refreshIfNeeded()
-                try? await Task.sleep(for: .milliseconds(400))
+                try? await Task.sleep(nanoseconds: 400_000_000)
             }
         }
     }
@@ -76,7 +76,7 @@ final class CarPlayLyricsCoordinator {
     }
 
     private func pushRootTemplate(animated: Bool) {
-        guard let interfaceController else { return }
+        guard let interfaceController = interfaceController else { return }
         let template = buildTabBar()
         interfaceController.setRootTemplate(template, animated: animated) { _, _ in }
     }

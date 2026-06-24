@@ -51,10 +51,10 @@ final class NowPlayingService: ObservableObject {
 
         pollTask?.cancel()
         pollTask = Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self = self else { return }
             while !Task.isCancelled {
                 self.refresh()
-                try? await Task.sleep(for: .seconds(self.pollInterval))
+                try? await Task.sleep(nanoseconds: UInt64(self.pollInterval * 1_000_000_000))
             }
         }
 
@@ -126,7 +126,7 @@ final class NowPlayingService: ObservableObject {
         d.extractedArtist = song?.artist
         d.appleMusicItemTitle = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem?.title
         d.systemPlaybackState = inferredPlaybackStateLabel(isPlaying: isPlaying, rate: rate)
-        d.rawKeys = info?.keys.sorted() ?? []
+        d.rawKeys = info.map { Array($0.keys).sorted() } ?? []
 
         if let info {
             let lines = info.map { key, value in

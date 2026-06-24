@@ -38,7 +38,7 @@ enum SharedLyricStore {
     }
 
     static func write(_ snapshot: SharedLyricSnapshot) {
-        guard let defaults else { return }
+        guard let defaults = defaults else { return }
         defaults.set(snapshot.songTitle, forKey: SharedLyricKeys.songTitle)
         defaults.set(snapshot.artistName, forKey: SharedLyricKeys.artistName)
         defaults.set(snapshot.currentLyricLine, forKey: SharedLyricKeys.currentLyricLine)
@@ -47,7 +47,7 @@ enum SharedLyricStore {
     }
 
     static func read() -> SharedLyricSnapshot {
-        guard let defaults else { return .empty }
+        guard let defaults = defaults else { return .empty }
 
         let title = defaults.string(forKey: SharedLyricKeys.songTitle) ?? SharedLyricSnapshot.empty.songTitle
         let artist = defaults.string(forKey: SharedLyricKeys.artistName) ?? ""
@@ -65,7 +65,7 @@ enum SharedLyricStore {
     }
 
     static func clear() {
-        guard let defaults else { return }
+        guard let defaults = defaults else { return }
         defaults.removeObject(forKey: SharedLyricKeys.songTitle)
         defaults.removeObject(forKey: SharedLyricKeys.artistName)
         defaults.removeObject(forKey: SharedLyricKeys.currentLyricLine)
