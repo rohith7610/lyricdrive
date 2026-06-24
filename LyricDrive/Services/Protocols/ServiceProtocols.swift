@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 protocol NowPlayingServiceProtocol: AnyObject {
     var state: NowPlayingState { get }
     func startMonitoring()
@@ -11,6 +12,7 @@ protocol LyricsAPIServiceProtocol: Actor {
     func searchTracks(query: String) async throws -> [Song]
 }
 
+@MainActor
 protocol LyricsCacheServiceProtocol: AnyObject {
     func cache(result: LyricsResult, lrcParser: LRCParser)
     func loadCachedLyrics(for song: Song, lrcParser: LRCParser) -> LyricsResult?

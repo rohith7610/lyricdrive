@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct ContentView: View {
     @Environment(LyricsViewModel.self) private var lyricsViewModel
     @Environment(\.scenePhase) private var scenePhase

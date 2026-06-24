@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct NowPlayingDiagnosticsSection: View {
     @ObservedObject var nowPlaying: NowPlayingService
 

@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct SettingsView: View {
     @Environment(SettingsViewModel.self) private var settings
     @Environment(ThemeManager.self) private var themeManager
@@ -109,6 +110,7 @@ struct SettingsView: View {
     }
 }
 
+@MainActor
 struct ThemePreviewRow: View {
     let theme: AppTheme
 

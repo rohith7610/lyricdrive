@@ -3,6 +3,7 @@ import SwiftData
 import CarPlay
 
 @main
+@MainActor
 struct LyricDriveApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
@@ -23,6 +24,7 @@ struct LyricDriveApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
