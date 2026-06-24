@@ -33,7 +33,7 @@ final class NowPlayingService: ObservableObject {
     private let pollInterval: TimeInterval = 0.5
 
     func startMonitoring() {
-        remoteObserver.startObserving { [weak self] in
+        remoteObserver.startObserving { [weak self] @Sendable in
             Task { @MainActor in self?.refresh() }
         }
 

@@ -127,13 +127,14 @@ actor ShazamRecognitionService {
     private static func captureAudio(
         into session: SHSession,
         duration: TimeInterval,
-        onStart: @escaping (AVAudioEngine) async -> Void
+        onStart: @escaping @Sendable (AVAudioEngine) async -> Void
     ) async throws {
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
 
         inputNode.installTap(onBus: 0, bufferSize: 8192, format: format) { buffer, _ in
+            // ShazamKit is thread-safe for streaming buffers
             session.matchStreamingBuffer(buffer, at: nil)
         }
 
@@ -143,7 +144,7 @@ actor ShazamRecognitionService {
     }
 }
 
-private final class ShazamDelegate: NSObject, SHSessionDelegate {
+private final class ShazamDelegate: NSObject, SHSessionDelegate, @unchecked Sendable {
     private var continuation: CheckedContinuation<Song, Error>?
     private var session: SHSession?
     var didComplete = false

@@ -5,9 +5,9 @@ import UIKit
 /// Registers with the system media remote so iOS routes Now Playing updates to LyricDrive.
 @MainActor
 final class RemoteMediaObserver {
-    private var onUpdate: (() -> Void)?
+    private var onUpdate: (@Sendable () -> Void)?
 
-    func startObserving(onUpdate: @escaping () -> Void) {
+    func startObserving(onUpdate: @escaping @Sendable () -> Void) {
         self.onUpdate = onUpdate
         UIApplication.shared.beginReceivingRemoteControlEvents()
 
@@ -22,8 +22,9 @@ final class RemoteMediaObserver {
 
     private func wire(_ command: MPRemoteCommand) {
         command.isEnabled = true
-        command.addTarget { [weak self] _ in
-            Task { @MainActor in self?.onUpdate?() }
+        let callback = onUpdate   // capture a local copy; @Sendable, no actor hop needed
+        command.addTarget { _ in
+            callback?()
             return .noActionableNowPlayingItem
         }
     }
