@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 enum AppConstants {
     static let appGroupID = "group.com.lyricdrive.shared"
@@ -24,7 +27,7 @@ struct SharedLyricSnapshot: Codable, Equatable, Sendable {
     var updatedAt: Date
 
     static let empty = SharedLyricSnapshot(
-        songTitle: "—",
+        songTitle: "-",
         artistName: "",
         currentLyricLine: "Open LyricDrive while music plays",
         isPlaying: false,
@@ -44,6 +47,9 @@ enum SharedLyricStore {
         defaults.set(snapshot.currentLyricLine, forKey: SharedLyricKeys.currentLyricLine)
         defaults.set(snapshot.isPlaying, forKey: SharedLyricKeys.isPlaying)
         defaults.set(snapshot.updatedAt.timeIntervalSince1970, forKey: SharedLyricKeys.updatedAt)
+#if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+#endif
     }
 
     static func read() -> SharedLyricSnapshot {
@@ -71,5 +77,8 @@ enum SharedLyricStore {
         defaults.removeObject(forKey: SharedLyricKeys.currentLyricLine)
         defaults.removeObject(forKey: SharedLyricKeys.isPlaying)
         defaults.removeObject(forKey: SharedLyricKeys.updatedAt)
+#if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+#endif
     }
 }

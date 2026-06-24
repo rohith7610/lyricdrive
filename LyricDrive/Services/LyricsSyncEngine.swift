@@ -70,7 +70,8 @@ final class LyricsSyncEngine: ObservableObject {
         guard isPlaying, lastKnownRate > 0 else { return }
         let elapsed = Date().timeIntervalSince(lastTickDate)
         lastTickDate = Date()
-        currentPosition = lastKnownPosition + elapsed * lastKnownRate
+        currentPosition += elapsed * lastKnownRate
+        lastKnownPosition = currentPosition
         updateActiveLine()
     }
 

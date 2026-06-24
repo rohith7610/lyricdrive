@@ -3,7 +3,6 @@ import SwiftUI
 struct SearchView: View {
     @Environment(SearchViewModel.self) private var viewModel
     @Environment(LyricsViewModel.self) private var lyricsViewModel
-    @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -13,7 +12,7 @@ struct SearchView: View {
                 Section {
                     Text("1. Search for your song and tap a result.")
                     Text("2. Lyrics appear on the Lyrics tab.")
-                    Text("3. On CarPlay, open LyricDrive — the Lyrics tab shows the current line while you drive.")
+                    Text("3. Synced lyrics auto-scroll when timing data is available.")
                         .foregroundStyle(.secondary)
                 } header: {
                     Text("How to load lyrics")
@@ -44,9 +43,9 @@ struct SearchView: View {
                     }
                 }
 
-                Section("Results — tap to show lyrics") {
+                Section("Results") {
                     if viewModel.results.isEmpty && !viewModel.isSearching {
-                        Text("Example: \"Taylor Swift Cruel Summer\"")
+                        Text("Example: Taylor Swift Cruel Summer")
                             .foregroundStyle(.secondary)
                     }
 
@@ -72,5 +71,3 @@ struct SearchView: View {
         }
     }
 }
-
-

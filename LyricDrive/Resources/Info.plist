@@ -30,8 +30,6 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
-    <key>NSSupportsLiveActivities</key>
-    <true/>
     <key>UIBackgroundModes</key>
     <array>
         <string>audio</string>

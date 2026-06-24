@@ -35,22 +35,27 @@ struct SettingsView: View {
 
                 Section("Detection") {
                     Toggle("Auto Shazam Fallback", isOn: $settings.enableShazamFallback)
-                    Text("Keep OFF if Shazam pauses your music. Use Detect Song or Search instead.")
+                    Text("Keep off if Shazam pauses your music. Use Detect Song or Search instead.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 NowPlayingDiagnosticsSection(nowPlaying: AppDependencyContainer.shared.nowPlayingService)
 
-                Section("Live Activity") {
-                    Toggle("Lock Screen & Dynamic Island", isOn: $settings.enableLiveActivity)
-                    Text("Shows the current lyric on your Lock Screen and Dynamic Island while the app is running.")
+                Section("Playback Controls") {
+                    Text("In-app play, pause, and skip controls work with Apple Music. For Spotify or YouTube Music, use their app or Lock Screen controls.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Playback Controls") {
-                    Text("In-app play/pause/skip controls work with Apple Music. For Spotify or YouTube Music, use their app or Lock Screen controls.")
+                Section("Widget") {
+                    Text("Add the LyricDrive widget to your Lock Screen or Home Screen after opening the app and loading lyrics once.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Translation") {
+                    Text("Tap the speech bubble on the Lyrics screen to show English translations. Requires internet.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -64,27 +69,6 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                }
-
-                Section("CarPlay") {
-                    Text("Open LyricDrive on your CarPlay screen. The Now tab is a widget-style view with the current lyric line. Lyrics tab shows NOW / Next / Then.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("Apple does not allow third-party apps on the CarPlay home screen grid — open LyricDrive from the CarPlay app list after connecting.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Widgets") {
-                    Text("Add the LyricDrive widget to your iPhone Lock Screen (long-press Lock Screen → Customize → add Current Lyric widget).")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Translation") {
-                    Text("Tap the translate button (speech bubble) on the Lyrics screen to show English translations for foreign-language songs. Requires internet.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("About") {
@@ -134,4 +118,3 @@ struct ThemePreviewRow: View {
         }
     }
 }
-
