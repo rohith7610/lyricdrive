@@ -2,7 +2,7 @@ import Foundation
 import ActivityKit
 
 struct LyricActivityAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
+    struct ContentState: Codable, Hashable, Sendable {
         var songTitle: String
         var artistName: String
         var currentLyricLine: String

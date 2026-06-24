@@ -114,7 +114,7 @@ struct LyricLockScreenWidget: Widget {
     }
 }
 
-struct LyricWidgetEntry: TimelineEntry {
+struct LyricWidgetEntry: TimelineEntry, Sendable {
     let date: Date
     let songTitle: String
     let lyricLine: String
@@ -126,11 +126,11 @@ struct LyricWidgetProvider: TimelineProvider {
         LyricWidgetEntry(date: .now, songTitle: "Song Title", lyricLine: "Current lyric line…", isPlaying: true)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (LyricWidgetEntry) -> Void) {
+    func getSnapshot(in context: Context, completion: @escaping @Sendable (LyricWidgetEntry) -> Void) {
         completion(entryFromSharedStore())
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<LyricWidgetEntry>) -> Void) {
+    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<LyricWidgetEntry>) -> Void) {
         let entry = entryFromSharedStore()
         let refreshMinutes = entry.isPlaying ? 1 : 5
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: .now)
