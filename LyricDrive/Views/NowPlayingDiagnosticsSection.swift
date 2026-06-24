@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NowPlayingDiagnosticsSection: View {
-    @ObservedObject private var nowPlaying = AppDependencyContainer.shared.nowPlayingService
+    @ObservedObject var nowPlaying: NowPlayingService
 
     var body: some View {
         Section("Now Playing Diagnostics") {

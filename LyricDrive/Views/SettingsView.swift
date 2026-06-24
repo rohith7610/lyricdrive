@@ -8,8 +8,6 @@ struct SettingsView: View {
     @State private var showClearCacheConfirm = false
     @State private var cacheMessage: String?
 
-    private let cacheService = AppDependencyContainer.shared.lyricsCacheService
-
     var body: some View {
         @Bindable var settings = settings
         @Bindable var themeManager = themeManager
@@ -41,7 +39,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                NowPlayingDiagnosticsSection()
+                NowPlayingDiagnosticsSection(nowPlaying: AppDependencyContainer.shared.nowPlayingService)
 
                 Section("Live Activity") {
                     Toggle("Lock Screen & Dynamic Island", isOn: $settings.enableLiveActivity)
@@ -101,7 +99,7 @@ struct SettingsView: View {
                 titleVisibility: .visible
             ) {
                 Button("Clear Everything", role: .destructive) {
-                    cacheService.clearAllData()
+                    AppDependencyContainer.shared.lyricsCacheService.clearAllData()
                     favoritesViewModel.refresh()
                     cacheMessage = "Cache cleared."
                 }
