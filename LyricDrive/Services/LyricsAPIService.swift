@@ -94,6 +94,7 @@ actor LyricsAPIService {
 
         let track = try JSONDecoder().decode(LRCLibTrack.self, from: data)
         let parsed = parseTrack(track)
+        guard hasLyrics(parsed) else { throw LyricsAPIError.notFound }
         return LyricsResult(song: song, lyrics: parsed, provider: .lrcLib)
     }
 
@@ -120,7 +121,11 @@ actor LyricsAPIService {
             guard http.statusCode == 200 else { throw LyricsAPIError.invalidResponse }
 
             let track = try JSONDecoder().decode(LRCLibTrack.self, from: data)
-            return parseTrack(track)
+            let parsed = parseTrack(track)
+            if hasLyrics(parsed) {
+                return parsed
+            }
+            return try await fallbackSearch(title: title, artist: artist)
         } catch let error as LyricsAPIError {
             throw error
         } catch {
@@ -129,7 +134,7 @@ actor LyricsAPIService {
     }
 
     private func fallbackSearch(title: String, artist: String) async throws -> ParsedLyrics? {
-        let query = "\(artist) \(title)"
+        let query = isUnknownArtist(artist) ? title : "\(artist) \(title)"
         guard query.count <= AppConstants.maxSearchQueryLength,
               let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "\(baseURL)/search?q=\(encoded)") else {
@@ -137,13 +142,11 @@ actor LyricsAPIService {
         }
 
         let tracks = try await fetchLRCLibSearch(url: url)
-        guard let best = tracks.first else { return nil }
-
-        if let synced = best.syncedLyrics, !synced.isEmpty {
-            return lrcParser.parse(synced)
-        }
-        if let plain = best.plainLyrics {
-            return ParsedLyrics(lines: [], isSynced: false, plainText: plain)
+        for track in tracks {
+            let parsed = parseTrack(track)
+            if hasLyrics(parsed) {
+                return parsed
+            }
         }
         return nil
     }
@@ -167,6 +170,14 @@ actor LyricsAPIService {
             return ParsedLyrics(lines: [], isSynced: false, plainText: plain)
         }
         return .empty
+    }
+
+    private func hasLyrics(_ lyrics: ParsedLyrics) -> Bool {
+        !lyrics.lines.isEmpty || lyrics.plainText?.isEmpty == false
+    }
+
+    private func isUnknownArtist(_ artist: String) -> Bool {
+        artist.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveCompare("Unknown Artist") == .orderedSame
     }
 
     private func validatePayloadSize(_ data: Data) throws {

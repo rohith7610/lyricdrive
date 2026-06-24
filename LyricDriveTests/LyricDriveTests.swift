@@ -153,7 +153,7 @@ struct AppConstantsTests {
 struct SharedLyricSnapshotTests {
     @Test("Default empty snapshot has placeholder text")
     func emptySnapshot() {
-        #expect(SharedLyricSnapshot.empty.songTitle == "—")
+        #expect(SharedLyricSnapshot.empty.songTitle == "-")
         #expect(!SharedLyricSnapshot.empty.currentLyricLine.isEmpty)
     }
 

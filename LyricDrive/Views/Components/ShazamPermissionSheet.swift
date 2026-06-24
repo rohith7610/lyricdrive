@@ -14,7 +14,7 @@ struct ShazamPermissionSheet: View {
                 Text("Identify Songs with Shazam")
                     .font(.title2.bold())
 
-                Text("LyricDrive reads song info from Control Center first. Shazam uses the microphone and may briefly pause music on some devices.")
+                Text("LyricDrive reads song info from Control Center first. If iOS hides it, Shazam uses the microphone to identify the song.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)

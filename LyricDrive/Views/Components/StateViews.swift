@@ -42,7 +42,7 @@ struct LoadingView: View {
             ProgressView()
                 .scaleEffect(1.5)
                 .tint(themeManager.currentTheme.accentColor)
-            Text(isRecognizing ? "Listening…" : "Loading lyrics…")
+            Text(isRecognizing ? "Listening..." : "Loading lyrics...")
                 .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
         }
     }
@@ -71,7 +71,7 @@ struct ErrorStateView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            Button("Try Shazam (speaker audio)", action: retry)
+            Button("Detect Song", action: retry)
                 .buttonStyle(.borderedProminent)
         }
     }

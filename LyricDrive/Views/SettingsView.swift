@@ -35,7 +35,7 @@ struct SettingsView: View {
 
                 Section("Detection") {
                     Toggle("Auto Shazam Fallback", isOn: $settings.enableShazamFallback)
-                    Text("Keep off if Shazam pauses your music. Use Detect Song or Search instead.")
+                    Text("When iOS hides song info, LyricDrive can identify music through the microphone and load lyrics automatically.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

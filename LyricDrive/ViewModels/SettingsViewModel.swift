@@ -18,8 +18,14 @@ final class SettingsViewModel {
         self.themeManager = themeManager
         enableLiveActivity = false
         UserDefaults.standard.set(false, forKey: "enableLiveActivity")
-        // Off by default because auto-Shazam often fails with headphones/car audio.
-        enableShazamFallback = UserDefaults.standard.object(forKey: "enableShazamFallback") as? Bool ?? false
+        // On by default so LyricDrive can identify songs when iOS hides Now Playing metadata.
+        if UserDefaults.standard.bool(forKey: "didEnableShazamFallbackByDefault") {
+            enableShazamFallback = UserDefaults.standard.object(forKey: "enableShazamFallback") as? Bool ?? true
+        } else {
+            enableShazamFallback = true
+            UserDefaults.standard.set(true, forKey: "enableShazamFallback")
+            UserDefaults.standard.set(true, forKey: "didEnableShazamFallbackByDefault")
+        }
         autoScrollLyrics = UserDefaults.standard.object(forKey: "autoScrollLyrics") as? Bool ?? true
     }
 

@@ -18,8 +18,8 @@ struct LyricsView: View {
                     EmptyStateView(
                         title: "Waiting for Music",
                         message: viewModel.userHint ?? "Start music in another app, then return here.",
-                        actionTitle: "Detect Song (keeps music playing)",
-                        action: { Task { await viewModel.detectSongWithoutShazam() } }
+                        actionTitle: "Detect Song",
+                        action: requestShazam
                     )
                 case .loading, .recognizing:
                     LoadingView(isRecognizing: viewModel.loadingState == .recognizing)
@@ -88,7 +88,7 @@ struct LyricsView: View {
                         Button("Refresh Now Playing", systemImage: "arrow.clockwise") {
                             Task { await viewModel.detectSongWithoutShazam() }
                         }
-                        Button("Identify with Shazam (may pause music)", systemImage: "waveform") {
+                        Button("Identify with Microphone", systemImage: "waveform") {
                             requestShazam()
                         }
                     } label: {
@@ -104,7 +104,7 @@ struct LyricsView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 4) {
-                    Text("Use Detect Song or Search tab · Avoid Shazam if music pauses")
+                    Text("Use Detect Song or Search tab")
                         .font(.caption2)
                         .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
                         .multilineTextAlignment(.center)

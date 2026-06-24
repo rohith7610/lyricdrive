@@ -11,9 +11,9 @@ enum ShazamError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .microphonePermissionDenied:
-            return "Microphone access is required. Enable it in Settings → LyricDrive → Microphone."
+            return "Microphone access is required. Enable it in Settings > LyricDrive > Microphone."
         case .noMatch:
-            return "Shazam couldn't hear the song. Use the Search tab instead — it won't pause your music."
+            return "Shazam couldn't hear the song. Use the Search tab instead."
         case .recognitionFailed(let error):
             return error.localizedDescription
         case .alreadyRunning:

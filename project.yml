@@ -41,7 +41,7 @@ targets:
     sources:
       - LyricDriveWidget
       - path: LyricDrive/Shared/AppConstants.swift
-        group: Shared
+        group: WidgetShared
     settings:
       base:
         PRODUCT_NAME: LyricDriveWidget
