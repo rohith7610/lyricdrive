@@ -102,7 +102,7 @@ final class LyricsViewModel {
             return
         }
 
-        if let cachedTranslation = translatedLyrics {
+        if translatedLyrics != nil {
             showEnglishTranslation = true
             translationMessage = nil
             publishSharedState()

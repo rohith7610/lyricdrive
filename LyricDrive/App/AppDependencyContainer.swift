@@ -79,7 +79,7 @@ final class AppDependencyContainer {
     }
 
     private func requestMediaLibraryAccessIfNeeded() {
-        MPMediaLibrary.requestAuthorization { [weak self] @Sendable status in
+        MPMediaLibrary.requestAuthorization { @Sendable [weak self] status in
             Task { @MainActor in
                 AppLogger.nowPlaying.info("Media library authorization: \(status.rawValue)")
                 self?.nowPlayingService.refresh()

@@ -33,7 +33,7 @@ final class NowPlayingService: ObservableObject {
     private let pollInterval: TimeInterval = 0.5
 
     func startMonitoring() {
-        remoteObserver.startObserving { [weak self] @Sendable in
+        remoteObserver.startObserving { @Sendable [weak self] in
             Task { @MainActor in self?.refresh() }
         }
 
@@ -59,7 +59,7 @@ final class NowPlayingService: ObservableObject {
         }
 
         refresh()
-        AppLogger.nowPlaying.info("Now Playing monitoring started (task poll \(pollInterval)s)")
+        AppLogger.nowPlaying.info("Now Playing monitoring started (task poll \(self.pollInterval)s)")
     }
 
     func stopMonitoring() {
