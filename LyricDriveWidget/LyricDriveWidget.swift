@@ -110,7 +110,7 @@ struct LyricLockScreenWidget: Widget {
         }
         .configurationDisplayName("Current Lyric")
         .description("Shows the currently playing lyric line from LyricDrive.")
-        .supportedFamilies([.accessoryRectangular, .systemSmall])
+        .supportedFamilies([.accessoryRectangular, .accessoryInline, .systemSmall])
     }
 }
 
@@ -132,7 +132,9 @@ struct LyricWidgetProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<LyricWidgetEntry>) -> Void) {
         let entry = entryFromSharedStore()
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: .now) ?? .now.addingTimeInterval(300)
+        let refreshMinutes = entry.isPlaying ? 1 : 5
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: refreshMinutes, to: .now)
+            ?? .now.addingTimeInterval(TimeInterval(refreshMinutes * 60))
         completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
     }
 
@@ -148,23 +150,30 @@ struct LyricWidgetProvider: TimelineProvider {
 }
 
 struct LyricWidgetEntryView: View {
+    @Environment(\.widgetFamily) private var family
     let entry: LyricWidgetEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(entry.songTitle)
-                    .font(.caption.bold())
-                    .lineLimit(1)
-                if entry.isPlaying {
-                    Spacer(minLength: 4)
-                    Image(systemName: "waveform")
-                        .font(.caption2)
+        switch family {
+        case .accessoryInline:
+            Text("\(entry.songTitle): \(entry.lyricLine)")
+                .lineLimit(1)
+        default:
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(entry.songTitle)
+                        .font(.caption.bold())
+                        .lineLimit(1)
+                    if entry.isPlaying {
+                        Spacer(minLength: 4)
+                        Image(systemName: "waveform")
+                            .font(.caption2)
+                    }
                 }
+                Text(entry.lyricLine)
+                    .font(.footnote)
+                    .lineLimit(2)
             }
-            Text(entry.lyricLine)
-                .font(.footnote)
-                .lineLimit(2)
         }
     }
 }

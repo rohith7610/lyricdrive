@@ -68,16 +68,28 @@ struct SettingsView: View {
                 }
 
                 Section("CarPlay") {
-                    Text("Connect your iPhone to CarPlay and open LyricDrive on the car screen. The Lyrics tab shows the current line, next lines, and syncs while you drive.")
+                    Text("Open LyricDrive on your CarPlay screen. The Now tab is a widget-style view with the current lyric line. Lyrics tab shows NOW / Next / Then.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("First search for a song on your iPhone (Search tab), then CarPlay displays synced lyrics.")
+                    Text("Apple does not allow third-party apps on the CarPlay home screen grid — open LyricDrive from the CarPlay app list after connecting.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Widgets") {
+                    Text("Add the LyricDrive widget to your iPhone Lock Screen (long-press Lock Screen → Customize → add Current Lyric widget).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Translation") {
+                    Text("Tap the translate button (speech bubble) on the Lyrics screen to show English translations for foreign-language songs. Requires internet.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 Section("About") {
-                    LabeledContent("Version", value: "1.1.1")
+                    LabeledContent("Version", value: "1.2.0")
                     LabeledContent("Lyrics Provider", value: "LRCLIB")
                     LabeledContent("Use", value: "Personal")
                 }

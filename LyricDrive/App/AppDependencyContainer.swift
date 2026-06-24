@@ -66,7 +66,8 @@ final class AppDependencyContainer {
             liveActivityManager: liveActivityManager,
             favoritesViewModel: favoritesViewModel,
             settings: settingsViewModel,
-            tabRouter: tabRouter
+            tabRouter: tabRouter,
+            translationService: LyricsTranslationService()
         )
     }
 

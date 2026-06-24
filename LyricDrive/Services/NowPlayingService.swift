@@ -77,27 +77,14 @@ final class NowPlayingService: ObservableObject {
 
         let rate = info?[MPNowPlayingInfoPropertyPlaybackRate] as? Double ?? 0
         let position = info?[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? TimeInterval ?? 0
-        let systemState = MPNowPlayingInfoCenter.default().playbackState
 
         otherAudioIsPlaying = !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
 
-        var isPlaying: Bool
-        switch systemState {
-        case .playing:
-            isPlaying = true
-        case .paused, .stopped, .interrupted:
-            isPlaying = false
-        @unknown default:
-            isPlaying = rate > 0
-        }
-
+        var isPlaying = rate > 0
         if !isPlaying, song != nil, abs(position - lastPosition) > 0.3 {
             isPlaying = true
         }
         if !isPlaying, song != nil, otherAudioIsPlaying {
-            isPlaying = true
-        }
-        if !isPlaying, rate > 0 {
             isPlaying = true
         }
 
@@ -120,11 +107,7 @@ final class NowPlayingService: ObservableObject {
             isPlaying: isPlaying
         )
 
-        diagnostics = buildDiagnostics(
-            info: info,
-            song: song,
-            systemState: systemState
-        )
+        diagnostics = buildDiagnostics(info: info, song: song, isPlaying: isPlaying, rate: rate)
     }
 
     var hasMetadata: Bool { state.song != nil }
@@ -132,7 +115,8 @@ final class NowPlayingService: ObservableObject {
     private func buildDiagnostics(
         info: [String: Any]?,
         song: Song?,
-        systemState: MPNowPlayingPlaybackState
+        isPlaying: Bool,
+        rate: Double
     ) -> NowPlayingDiagnostics {
         var d = NowPlayingDiagnostics()
         d.lastRefresh = .now
@@ -141,7 +125,7 @@ final class NowPlayingService: ObservableObject {
         d.extractedTitle = song?.title
         d.extractedArtist = song?.artist
         d.appleMusicItemTitle = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem?.title
-        d.systemPlaybackState = playbackStateLabel(systemState)
+        d.systemPlaybackState = inferredPlaybackStateLabel(isPlaying: isPlaying, rate: rate)
         d.rawKeys = info?.keys.sorted() ?? []
 
         if let info {
@@ -159,15 +143,10 @@ final class NowPlayingService: ObservableObject {
         return d
     }
 
-    private func playbackStateLabel(_ state: MPNowPlayingPlaybackState) -> String {
-        switch state {
-        case .unknown: return "unknown"
-        case .playing: return "playing"
-        case .paused: return "paused"
-        case .stopped: return "stopped"
-        case .interrupted: return "interrupted"
-        @unknown default: return "other"
-        }
+    private func inferredPlaybackStateLabel(isPlaying: Bool, rate: Double) -> String {
+        if isPlaying { return "playing (inferred)" }
+        if rate == 0 { return "paused (inferred)" }
+        return "unknown"
     }
 
     private func extractFromAppleMusicPlayer() -> Song? {

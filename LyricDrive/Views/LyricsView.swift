@@ -28,11 +28,29 @@ struct LyricsView: View {
                         requestShazam()
                     }
                 case .loaded, .offline:
-                    LyricsScrollView(
-                        lyrics: viewModel.parsedLyrics,
-                        activeIndex: viewModel.activeLineIndex,
-                        autoScroll: settings.autoScrollLyrics
-                    )
+                    VStack(spacing: 8) {
+                        ZStack {
+                            LyricsScrollView(
+                                lyrics: viewModel.displayLyrics,
+                                activeIndex: viewModel.activeLineIndex,
+                                autoScroll: settings.autoScrollLyrics
+                            )
+
+                            if viewModel.isTranslating {
+                                ProgressView("Translating to English…")
+                                    .padding()
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
+
+                        if let message = viewModel.translationMessage {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                                .padding(.horizontal)
+                        }
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -46,6 +64,19 @@ struct LyricsView: View {
                     )
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    if viewModel.hasDisplayedLyrics {
+                        Button {
+                            Task { await viewModel.toggleEnglishTranslation() }
+                        } label: {
+                            if viewModel.isTranslating {
+                                ProgressView()
+                            } else {
+                                Image(systemName: viewModel.showEnglishTranslation ? "character.bubble.fill" : "character.bubble")
+                            }
+                        }
+                        .accessibilityLabel("Translate to English")
+                    }
+
                     Button {
                         viewModel.toggleFavorite()
                     } label: {
