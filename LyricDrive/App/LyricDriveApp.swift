@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import CarPlay
 
 @main
 @MainActor
@@ -32,26 +31,5 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         AppDependencyContainer.shared.configure(application: application)
         return true
-    }
-
-    func application(
-        _ application: UIApplication,
-        configurationForConnecting connectingSceneSession: UISceneSession,
-        options: UIScene.ConnectionOptions
-    ) -> UISceneConfiguration {
-        if connectingSceneSession.role == .carTemplateApplication {
-            let config = UISceneConfiguration(
-                name: "CarPlay",
-                sessionRole: connectingSceneSession.role
-            )
-            config.delegateClass = CarPlaySceneDelegate.self
-            config.sceneClass = CPTemplateApplicationScene.self
-            return config
-        }
-
-        return UISceneConfiguration(
-            name: "Default Configuration",
-            sessionRole: connectingSceneSession.role
-        )
     }
 }
