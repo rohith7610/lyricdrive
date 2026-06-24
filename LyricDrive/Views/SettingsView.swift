@@ -133,9 +133,3 @@ struct ThemePreviewRow: View {
     }
 }
 
-#Preview {
-    SettingsView()
-        .environment(AppDependencyContainer.shared.settingsViewModel)
-        .environment(AppDependencyContainer.shared.themeManager)
-        .environment(AppDependencyContainer.shared.favoritesViewModel)
-}

@@ -62,8 +62,4 @@ struct SongRow: View {
     }
 }
 
-#Preview {
-    LibraryView()
-        .environment(AppDependencyContainer.shared.favoritesViewModel)
-        .environment(AppDependencyContainer.shared.lyricsViewModel)
-}
+

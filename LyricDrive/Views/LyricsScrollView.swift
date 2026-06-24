@@ -79,20 +79,3 @@ struct LyricLineView: View {
     }
 }
 
-#Preview {
-    LyricsScrollView(
-        lyrics: ParsedLyrics(
-            lines: [
-                LyricLine(timestamp: 0, text: "First line"),
-                LyricLine(timestamp: 5, text: "Second line"),
-                LyricLine(timestamp: 10, text: "Third line")
-            ],
-            isSynced: true,
-            plainText: nil
-        ),
-        activeIndex: 1,
-        autoScroll: true
-    )
-    .environment(AppDependencyContainer.shared.themeManager)
-    .background(Color.black)
-}

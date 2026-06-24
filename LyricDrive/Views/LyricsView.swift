@@ -209,9 +209,4 @@ struct MediaControlsBar: View {
     }
 }
 
-#Preview {
-    LyricsView()
-        .environment(AppDependencyContainer.shared.lyricsViewModel)
-        .environment(AppDependencyContainer.shared.themeManager)
-        .environment(AppDependencyContainer.shared.settingsViewModel)
-}
+

@@ -33,7 +33,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 final class CarPlayLyricsCoordinator {
     private weak var interfaceController: CPInterfaceController?
     private var pollTask: Task<Void, Never>?
-    private let container = AppDependencyContainer.shared
+    private var container: AppDependencyContainer { AppDependencyContainer.shared }
     private var lastFingerprint = ""
 
     init(interfaceController: CPInterfaceController) {

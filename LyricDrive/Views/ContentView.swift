@@ -55,12 +55,3 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-        .environment(AppDependencyContainer.shared.lyricsViewModel)
-        .environment(AppDependencyContainer.shared.searchViewModel)
-        .environment(AppDependencyContainer.shared.favoritesViewModel)
-        .environment(AppDependencyContainer.shared.settingsViewModel)
-        .environment(AppDependencyContainer.shared.themeManager)
-        .environment(AppDependencyContainer.shared.tabRouter)
-}

@@ -73,9 +73,4 @@ struct SearchView: View {
     }
 }
 
-#Preview {
-    SearchView()
-        .environment(AppDependencyContainer.shared.searchViewModel)
-        .environment(AppDependencyContainer.shared.lyricsViewModel)
-        .environment(AppDependencyContainer.shared.themeManager)
-}
+
