@@ -138,24 +138,30 @@ final class LyricsViewModel {
         syncEngine.$activeLineIndex
             .receive(on: DispatchQueue.main)
             .sink { [weak self] index in
-                self?.activeLineIndex = index
-                self?.publishSharedState()
-                self?.updateLiveActivity()
+                Task { @MainActor in
+                    self?.activeLineIndex = index
+                    self?.publishSharedState()
+                    self?.updateLiveActivity()
+                }
             }
             .store(in: &cancellables)
 
         syncEngine.$isPlaying
             .receive(on: DispatchQueue.main)
             .sink { [weak self] playing in
-                self?.isPlaying = playing
-                self?.publishSharedState()
+                Task { @MainActor in
+                    self?.isPlaying = playing
+                    self?.publishSharedState()
+                }
             }
             .store(in: &cancellables)
 
         syncEngine.$currentPosition
             .receive(on: DispatchQueue.main)
             .sink { [weak self] position in
-                self?.playbackPosition = position
+                Task { @MainActor in
+                    self?.playbackPosition = position
+                }
             }
             .store(in: &cancellables)
     }

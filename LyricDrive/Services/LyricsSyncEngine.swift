@@ -21,7 +21,9 @@ final class LyricsSyncEngine: ObservableObject {
         nowPlayingService.$state
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                self?.handleStateUpdate(state)
+                Task { @MainActor in
+                    self?.handleStateUpdate(state)
+                }
             }
             .store(in: &cancellables)
     }

@@ -39,14 +39,14 @@ final class NowPlayingService: ObservableObject {
 
         let center = NotificationCenter.default
         center.publisher(for: UIApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in self?.refresh() }
+            .sink { [weak self] _ in Task { @MainActor in self?.refresh() } }
             .store(in: &cancellables)
         center.publisher(for: UIApplication.willEnterForegroundNotification)
-            .sink { [weak self] _ in self?.refresh() }
+            .sink { [weak self] _ in Task { @MainActor in self?.refresh() } }
             .store(in: &cancellables)
         center.publisher(for: .MPMusicPlayerControllerNowPlayingItemDidChange)
             .merge(with: center.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange))
-            .sink { [weak self] _ in self?.refresh() }
+            .sink { [weak self] _ in Task { @MainActor in self?.refresh() } }
             .store(in: &cancellables)
 
         pollTask?.cancel()
