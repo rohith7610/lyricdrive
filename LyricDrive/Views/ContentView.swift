@@ -3,13 +3,15 @@ import SwiftUI
 struct ContentView: View {
     @Environment(LyricsViewModel.self) private var lyricsViewModel
     @Environment(\.scenePhase) private var scenePhase
-    @Bindable private var tabRouter = AppDependencyContainer.shared.tabRouter
+    @Environment(TabRouter.self) private var tabRouter
 
     private var startupError: String? {
         AppDependencyContainer.shared.startupError
     }
 
     var body: some View {
+        @Bindable var tabRouter = tabRouter
+
         TabView(selection: $tabRouter.selectedTab) {
             LyricsView()
                 .tabItem { Label("Lyrics", systemImage: "music.note.list") }
@@ -60,4 +62,5 @@ struct ContentView: View {
         .environment(AppDependencyContainer.shared.favoritesViewModel)
         .environment(AppDependencyContainer.shared.settingsViewModel)
         .environment(AppDependencyContainer.shared.themeManager)
+        .environment(AppDependencyContainer.shared.tabRouter)
 }

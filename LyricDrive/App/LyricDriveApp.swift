@@ -6,7 +6,7 @@ import CarPlay
 struct LyricDriveApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
-    private let container = AppDependencyContainer.shared
+    private var container: AppDependencyContainer { AppDependencyContainer.shared }
 
     var body: some Scene {
         WindowGroup {
@@ -16,6 +16,7 @@ struct LyricDriveApp: App {
                 .environment(container.favoritesViewModel)
                 .environment(container.settingsViewModel)
                 .environment(container.themeManager)
+                .environment(container.tabRouter)
                 .modelContainer(container.modelContainer)
                 .preferredColorScheme(container.settingsViewModel.colorSchemeOverride)
         }
