@@ -31,6 +31,18 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Validate App Icon
+        run: |
+          ICON="LyricDrive/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+          test -f "$ICON" || { echo "::error::Missing $ICON"; exit 1; }
+          WIDTH=$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')
+          HEIGHT=$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')
+          echo "App icon size: ${WIDTH}x${HEIGHT}"
+          if [ "$WIDTH" != "1024" ] || [ "$HEIGHT" != "1024" ]; then
+            echo "::error::App icon must be exactly 1024x1024 (found ${WIDTH}x${HEIGHT})"
+            exit 1
+          fi
+
       - name: List available simulators
         run: xcrun simctl list devices available
 
