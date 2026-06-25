@@ -47,4 +47,11 @@ enum SharedCurrentLyricStore {
             updatedAt: updated > 0 ? Date(timeIntervalSince1970: updated) : .distantPast
         )
     }
+
+    static func clear() {
+        guard let defaults else { return }
+        defaults.removeObject(forKey: Keys.songTitle)
+        defaults.removeObject(forKey: Keys.currentLyrics)
+        defaults.removeObject(forKey: Keys.updatedAt)
+    }
 }

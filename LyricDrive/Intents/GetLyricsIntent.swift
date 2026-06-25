@@ -18,3 +18,18 @@ struct GetLyricsIntent: AppIntent {
         )
     }
 }
+
+struct LyricDriveShortcutsProvider: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: GetLyricsIntent(),
+            phrases: [
+                "Get lyrics in \(.applicationName)"
+            ],
+            shortTitle: "Get Lyrics",
+            systemImageName: "text.quote"
+        )
+    }
+
+    static var shortcutTileColor: ShortcutTileColor = .blue
+}
