@@ -28,8 +28,14 @@ private enum SongQueryNormalizer {
             #"(?i)\s*\[(official\s*)?audio\]"#,
             #"(?i)\s*\((lyrics?|lyric\s*video)\)"#,
             #"(?i)\s*\[(lyrics?|lyric\s*video)\]"#,
-            #"(?i)\s*\((visualizer|remastered|hd|4k)\)"#,
-            #"(?i)\s*\[(visualizer|remastered|hd|4k)\]"#
+            #"(?i)\s*\((visualizer|remastered|hd|4k|live|karaoke)\)"#,
+            #"(?i)\s*\[(visualizer|remastered|hd|4k|live|karaoke)\]"#,
+            #"(?i)\s*\((from\s+.+|.+soundtrack.+)\)"#,
+            #"(?i)\s*\[(from\s+.+|.+soundtrack.+)\]"#,
+            #"(?i)\s*-\s*(official\s*)?(music\s*)?video$"#,
+            #"(?i)\s*-\s*(official\s*)?audio$"#,
+            #"(?i)\s*-\s*(lyrics?|lyric\s*video)$"#,
+            #"(?i)\s*-\s*(from\s+.+|.+soundtrack.+)$"#
         ]
 
         for pattern in removablePatterns {
@@ -48,15 +54,16 @@ private enum SongQueryNormalizer {
     }
 
     static func searchQueries(title: String, artist: String) -> [String] {
-        let cleanedTitle = cleanTitle(title, artist: artist)
-        let cleanedArtist = collapseWhitespace(artist)
+        let titleVariants = titleVariants(for: title, artist: artist)
+        let artistVariants = artistVariants(for: artist)
         var queries: [String] = []
 
-        if !isUnknownArtist(cleanedArtist) {
-            queries.append("\(cleanedArtist) \(cleanedTitle)")
+        for titleVariant in titleVariants {
+            for artistVariant in artistVariants where !isUnknownArtist(artistVariant) {
+                queries.append("\(artistVariant) \(titleVariant)")
+            }
+            queries.append(titleVariant)
         }
-        queries.append(cleanedTitle)
-        queries.append(title)
 
         return unique(queries)
             .filter { !$0.isEmpty && $0.count <= AppConstants.maxSearchQueryLength }
@@ -82,8 +89,52 @@ private enum SongQueryNormalizer {
     }
 
     static func isUnknownArtist(_ artist: String) -> Bool {
-        artist.trimmingCharacters(in: .whitespacesAndNewlines)
-            .localizedCaseInsensitiveCompare("Unknown Artist") == .orderedSame
+        let cleaned = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty
+            || cleaned.localizedCaseInsensitiveCompare("Unknown Artist") == .orderedSame
+            || cleaned.localizedCaseInsensitiveCompare("Various Artists") == .orderedSame
+    }
+
+    private static func titleVariants(for title: String, artist: String) -> [String] {
+        var variants = [cleanTitle(title, artist: artist), title]
+        let normalized = title
+            .replacingOccurrences(of: "\u{2013}", with: "-")
+            .replacingOccurrences(of: "\u{2014}", with: "-")
+
+        let separators = [" - ", " | ", " / "]
+        for separator in separators where normalized.contains(separator) {
+            let parts = normalized.components(separatedBy: separator)
+                .map(collapseWhitespace)
+                .filter { !$0.isEmpty }
+            variants.append(contentsOf: parts)
+        }
+
+        return unique(variants)
+    }
+
+    private static func artistVariants(for artist: String) -> [String] {
+        let cleaned = collapseWhitespace(artist)
+        guard !isUnknownArtist(cleaned) else { return [] }
+
+        var variants = [cleaned]
+        let splitPatterns = [
+            #"(?i)\s+feat\.?\s+"#,
+            #"(?i)\s+ft\.?\s+"#,
+            #"(?i)\s+featuring\s+"#,
+            #"(?i)\s+with\s+"#,
+            #"(?i)\s+x\s+"#,
+            #"\s*&\s*"#,
+            #"\s*,\s*"#
+        ]
+
+        for pattern in splitPatterns {
+            let pieces = split(cleaned, pattern: pattern)
+            if let first = pieces.first.map(collapseWhitespace), !first.isEmpty {
+                variants.append(first)
+            }
+        }
+
+        return unique(variants)
     }
 
     private static func stripArtistPrefix(from title: String, artist: String?) -> String {
@@ -97,6 +148,19 @@ private enum SongQueryNormalizer {
         value
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func split(_ value: String, pattern: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return [value]
+        }
+        let range = NSRange(value.startIndex..., in: value)
+        let replaced = regex.stringByReplacingMatches(
+            in: value,
+            range: range,
+            withTemplate: "\u{001F}"
+        )
+        return replaced.components(separatedBy: "\u{001F}")
     }
 
     private static func normalizedKey(_ value: String) -> String {

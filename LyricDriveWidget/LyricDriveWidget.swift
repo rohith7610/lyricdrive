@@ -53,12 +53,52 @@ struct LyricWidgetProvider: TimelineProvider {
     }
 
     private func entryFromSharedStore() -> LyricWidgetEntry {
-        let snapshot = SharedLyricStore.read()
+        let snapshot = WidgetSharedLyricStore.read()
         return LyricWidgetEntry(
             date: snapshot.updatedAt,
             songTitle: snapshot.songTitle,
             lyricLine: snapshot.currentLyricLine,
             isPlaying: snapshot.isPlaying
+        )
+    }
+}
+
+private struct WidgetSharedLyricSnapshot {
+    let songTitle: String
+    let lyricLine: String
+    let isPlaying: Bool
+    let updatedAt: Date
+
+    static let empty = WidgetSharedLyricSnapshot(
+        songTitle: "-",
+        lyricLine: "Open LyricDrive while music plays",
+        isPlaying: false,
+        updatedAt: .distantPast
+    )
+}
+
+private enum WidgetSharedLyricStore {
+    private static let appGroupID = "group.com.lyricdrive.shared"
+    private static let songTitleKey = "songTitle"
+    private static let currentLyricLineKey = "currentLyricLine"
+    private static let isPlayingKey = "isPlaying"
+    private static let updatedAtKey = "updatedAt"
+
+    static func read() -> WidgetSharedLyricSnapshot {
+        guard let defaults = UserDefaults(suiteName: appGroupID) else {
+            return .empty
+        }
+
+        let title = defaults.string(forKey: songTitleKey) ?? WidgetSharedLyricSnapshot.empty.songTitle
+        let line = defaults.string(forKey: currentLyricLineKey) ?? WidgetSharedLyricSnapshot.empty.lyricLine
+        let playing = defaults.bool(forKey: isPlayingKey)
+        let updated = defaults.double(forKey: updatedAtKey)
+
+        return WidgetSharedLyricSnapshot(
+            songTitle: title,
+            lyricLine: line,
+            isPlaying: playing,
+            updatedAt: updated > 0 ? Date(timeIntervalSince1970: updated) : .distantPast
         )
     }
 }
