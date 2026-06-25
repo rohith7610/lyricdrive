@@ -23,14 +23,14 @@ struct LyricDriveShortcutsProvider: AppShortcutsProvider {
         AppShortcut(
             intent: GetLyricsIntent(),
             phrases: [
-                "Get lyrics in \(.applicationName)",
-                "Get current lyrics from \(.applicationName)",
-                "Show \(.applicationName) lyrics"
+                "Get lyrics in \(.applicationName)"
             ],
             shortTitle: "Get Lyrics",
             systemImageName: "text.quote"
         )
     }
+
+    static var shortcutTileColor: ShortcutTileColor = .blue
 }
 
 private enum MockLRCLibLyricsFetcher {
