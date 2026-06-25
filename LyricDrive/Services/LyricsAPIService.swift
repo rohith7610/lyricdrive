@@ -18,6 +18,143 @@ enum LyricsAPIError: LocalizedError {
     }
 }
 
+private enum SongQueryNormalizer {
+    static func cleanTitle(_ title: String, artist: String? = nil) -> String {
+        var cleaned = title
+        let removablePatterns = [
+            #"(?i)\s*\((official\s*)?(music\s*)?video\)"#,
+            #"(?i)\s*\[(official\s*)?(music\s*)?video\]"#,
+            #"(?i)\s*\((official\s*)?audio\)"#,
+            #"(?i)\s*\[(official\s*)?audio\]"#,
+            #"(?i)\s*\((lyrics?|lyric\s*video)\)"#,
+            #"(?i)\s*\[(lyrics?|lyric\s*video)\]"#,
+            #"(?i)\s*\((visualizer|remastered|hd|4k)\)"#,
+            #"(?i)\s*\[(visualizer|remastered|hd|4k)\]"#
+        ]
+
+        for pattern in removablePatterns {
+            cleaned = cleaned.replacingOccurrences(
+                of: pattern,
+                with: "",
+                options: .regularExpression
+            )
+        }
+
+        cleaned = cleaned
+            .replacingOccurrences(of: "\u{2013}", with: "-")
+            .replacingOccurrences(of: "\u{2014}", with: "-")
+        cleaned = stripArtistPrefix(from: cleaned, artist: artist)
+        return collapseWhitespace(cleaned)
+    }
+
+    static func searchQueries(title: String, artist: String) -> [String] {
+        let cleanedTitle = cleanTitle(title, artist: artist)
+        let cleanedArtist = collapseWhitespace(artist)
+        var queries: [String] = []
+
+        if !isUnknownArtist(cleanedArtist) {
+            queries.append("\(cleanedArtist) \(cleanedTitle)")
+        }
+        queries.append(cleanedTitle)
+        queries.append(title)
+
+        return unique(queries)
+            .filter { !$0.isEmpty && $0.count <= AppConstants.maxSearchQueryLength }
+    }
+
+    static func score(track: LRCLibTrack, title: String, artist: String) -> Int {
+        let targetTitle = normalizedKey(cleanTitle(title, artist: artist))
+        let targetArtist = normalizedKey(artist)
+        let trackTitle = normalizedKey(cleanTitle(track.trackName, artist: track.artistName))
+        let trackArtist = normalizedKey(track.artistName)
+
+        var score = 0
+        if trackTitle == targetTitle { score += 80 }
+        else if trackTitle.contains(targetTitle) || targetTitle.contains(trackTitle) { score += 45 }
+        if !isUnknownArtist(artist) {
+            if trackArtist == targetArtist { score += 60 }
+            else if trackArtist.contains(targetArtist) || targetArtist.contains(trackArtist) { score += 25 }
+        }
+        if track.syncedLyrics?.isEmpty == false { score += 10 }
+        if track.plainLyrics?.isEmpty == false { score += 5 }
+        score -= LyricsTextSanitizer.qualityPenalty(track.syncedLyrics ?? track.plainLyrics)
+        return score
+    }
+
+    static func isUnknownArtist(_ artist: String) -> Bool {
+        artist.trimmingCharacters(in: .whitespacesAndNewlines)
+            .localizedCaseInsensitiveCompare("Unknown Artist") == .orderedSame
+    }
+
+    private static func stripArtistPrefix(from title: String, artist: String?) -> String {
+        guard let artist, !artist.isEmpty else { return title }
+        let escaped = NSRegularExpression.escapedPattern(for: collapseWhitespace(artist))
+        let pattern = #"(?i)^\s*\#(escaped)\s*[-:|]\s*"#
+        return title.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+    }
+
+    private static func collapseWhitespace(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func normalizedKey(_ value: String) -> String {
+        collapseWhitespace(value)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .replacingOccurrences(of: #"[^a-z0-9]+"#, with: "", options: .regularExpression)
+    }
+
+    private static func unique(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { value in
+            let key = normalizedKey(value)
+            guard !seen.contains(key) else { return false }
+            seen.insert(key)
+            return true
+        }
+    }
+}
+
+private enum LyricsTextSanitizer {
+    static func repair(_ text: String) -> String {
+        guard looksLikeMojibake(text) else { return text }
+
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(text.unicodeScalars.count)
+
+        for scalar in text.unicodeScalars {
+            guard scalar.value <= UInt8.max else { return text }
+            bytes.append(UInt8(scalar.value))
+        }
+
+        guard let repaired = String(data: Data(bytes), encoding: .utf8),
+              !looksLikeMojibake(repaired) else {
+            return text
+        }
+
+        return repaired
+    }
+
+    static func qualityPenalty(_ text: String?) -> Int {
+        guard let text, !text.isEmpty else { return 20 }
+        let repaired = repair(text)
+        return looksLikeMojibake(repaired) ? 80 : 0
+    }
+
+    private static func looksLikeMojibake(_ text: String) -> Bool {
+        let markers = ["\u{00E0}", "\u{00E2}", "\u{00C3}", "\u{00C2}", "\u{FFFD}"]
+        let markerCount = markers.reduce(0) { total, marker in
+            total + text.components(separatedBy: marker).count - 1
+        }
+        guard markerCount >= 3 else { return false }
+        return text.contains("\u{00B0}")
+            || text.contains("\u{00B1}")
+            || text.contains("\u{0081}")
+            || text.contains("\u{008D}")
+    }
+}
+
 struct LRCLibTrack: Codable, Sendable {
     let id: Int
     let trackName: String
@@ -48,8 +185,22 @@ actor LyricsAPIService {
     }
 
     func fetchLyrics(for song: Song) async throws -> LyricsResult {
-        if let result = try await searchLRCLib(title: song.title, artist: song.artist, album: song.album) {
-            return LyricsResult(song: song, lyrics: result, provider: .lrcLib)
+        let normalizedSong = Song(
+            id: song.id,
+            title: SongQueryNormalizer.cleanTitle(song.title, artist: song.artist),
+            artist: song.artist,
+            album: song.album,
+            artworkURL: song.artworkURL,
+            duration: song.duration,
+            source: song.source
+        )
+
+        if let result = try await searchLRCLib(
+            title: normalizedSong.title,
+            artist: normalizedSong.artist,
+            album: normalizedSong.album
+        ) {
+            return LyricsResult(song: normalizedSong, lyrics: result, provider: .lrcLib)
         }
         throw LyricsAPIError.notFound
     }
@@ -140,18 +291,25 @@ actor LyricsAPIService {
     }
 
     private func fallbackSearch(title: String, artist: String) async throws -> ParsedLyrics? {
-        let query = isUnknownArtist(artist) ? title : "\(artist) \(title)"
-        guard query.count <= AppConstants.maxSearchQueryLength,
-              let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/search?q=\(encoded)") else {
-            return nil
-        }
+        for query in SongQueryNormalizer.searchQueries(title: title, artist: artist) {
+            guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                  let url = URL(string: "\(baseURL)/search?q=\(encoded)") else {
+                continue
+            }
 
-        let tracks = try await fetchLRCLibSearch(url: url)
-        for track in tracks {
-            let parsed = parseTrack(track)
-            if hasLyrics(parsed) {
-                return parsed
+            let tracks = try await fetchLRCLibSearch(url: url)
+            let ranked = tracks
+                .filter(trackHasLyrics)
+                .sorted {
+                    SongQueryNormalizer.score(track: $0, title: title, artist: artist)
+                        > SongQueryNormalizer.score(track: $1, title: title, artist: artist)
+                }
+
+            if let track = ranked.first {
+                let parsed = parseTrack(track)
+                if hasLyrics(parsed) {
+                    return parsed
+                }
             }
         }
         return nil
@@ -170,10 +328,10 @@ actor LyricsAPIService {
 
     private func parseTrack(_ track: LRCLibTrack) -> ParsedLyrics {
         if let synced = track.syncedLyrics, !synced.isEmpty {
-            return lrcParser.parse(synced)
+            return lrcParser.parse(LyricsTextSanitizer.repair(synced))
         }
         if let plain = track.plainLyrics {
-            return ParsedLyrics(lines: [], isSynced: false, plainText: plain)
+            return ParsedLyrics(lines: [], isSynced: false, plainText: LyricsTextSanitizer.repair(plain))
         }
         return .empty
     }
@@ -187,7 +345,7 @@ actor LyricsAPIService {
     }
 
     private func isUnknownArtist(_ artist: String) -> Bool {
-        artist.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveCompare("Unknown Artist") == .orderedSame
+        SongQueryNormalizer.isUnknownArtist(artist)
     }
 
     private func validatePayloadSize(_ data: Data) throws {

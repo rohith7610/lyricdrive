@@ -25,9 +25,13 @@ struct LyricsView: View {
                 case .loading, .recognizing:
                     LoadingView(isRecognizing: viewModel.loadingState == .recognizing)
                 case .error(let message):
-                    ErrorStateView(message: message) {
-                        requestShazam()
-                    }
+                    LyricsStartView(
+                        hint: message,
+                        onDetect: requestShazam,
+                        onSelectSong: { song in
+                            Task { await viewModel.loadSongFromSearch(song) }
+                        }
+                    )
                 case .loaded, .offline:
                     VStack(spacing: 8) {
                         ZStack {

@@ -19,21 +19,20 @@ targets:
     platform: iOS
     sources:
       - path: LyricDrive
-        excludes:
-          - CarPlay/**
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app
         INFOPLIST_FILE: LyricDrive/Resources/Info.plist
-        CODE_SIGN_ENTITLEMENTS: LyricDrive/Resources/LyricDrive.entitlements
+        CODE_SIGN_ENTITLEMENTS: LyricDrive/Resources/LyricDrive.carplay.entitlements
         GENERATE_INFOPLIST_FILE: false
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 1.2.3
+        MARKETING_VERSION: 1.2.4
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     dependencies:
       - target: LyricDriveWidget
         embed: true
+        codeSign: true
 
   LyricDriveWidget:
     type: app-extension
@@ -45,12 +44,14 @@ targets:
     settings:
       base:
         PRODUCT_NAME: LyricDriveWidget
+        PRODUCT_MODULE_NAME: LyricDriveWidget
         PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app.widget
         INFOPLIST_FILE: LyricDriveWidget/Info.plist
         CODE_SIGN_ENTITLEMENTS: LyricDriveWidget/LyricDriveWidget.entitlements
         GENERATE_INFOPLIST_FILE: false
+        APPLICATION_EXTENSION_API_ONLY: true
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 1.2.3
+        MARKETING_VERSION: 1.2.4
         SKIP_INSTALL: YES
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
 

@@ -25,6 +25,8 @@ enum ShazamError: LocalizedError {
 actor ShazamRecognitionService {
     private var isRunning = false
     private var activeEngine: AVAudioEngine?
+    private var activeSession: SHSession?
+    private var activeDelegate: ShazamDelegate?
 
     func recognize(duration: TimeInterval = 8.0) async throws -> Song {
         guard !isRunning else { throw ShazamError.alreadyRunning }
@@ -58,6 +60,8 @@ actor ShazamRecognitionService {
             let session = SHSession()
             session.delegate = delegate
             delegate.hold(session: session)
+            activeSession = session
+            activeDelegate = delegate
 
             Task {
                 do {
@@ -110,10 +114,13 @@ actor ShazamRecognitionService {
     }
 
     private func stopEngine() {
-        guard let engine = activeEngine else { return }
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        if let engine = activeEngine {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
         activeEngine = nil
+        activeSession = nil
+        activeDelegate = nil
     }
 
     private func requestMicrophonePermission() async -> Bool {
@@ -147,7 +154,14 @@ actor ShazamRecognitionService {
 private final class ShazamDelegate: NSObject, SHSessionDelegate, @unchecked Sendable {
     private var continuation: CheckedContinuation<Song, Error>?
     private var session: SHSession?
-    var didComplete = false
+    private let lock = NSLock()
+    private var completed = false
+
+    var didComplete: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return completed
+    }
 
     init(continuation: CheckedContinuation<Song, Error>) {
         self.continuation = continuation
@@ -158,8 +172,7 @@ private final class ShazamDelegate: NSObject, SHSessionDelegate, @unchecked Send
     }
 
     func session(_ session: SHSession, didFind match: SHMatch) {
-        guard !didComplete else { return }
-        didComplete = true
+        guard markCompleted() else { return }
 
         guard let mediaItem = match.mediaItems.first else {
             continuation?.resume(throwing: ShazamError.noMatch)
@@ -179,10 +192,17 @@ private final class ShazamDelegate: NSObject, SHSessionDelegate, @unchecked Send
     }
 
     func session(_ session: SHSession, didNotFindMatchFor signature: SHSignature, error: Error?) {
-        guard !didComplete else { return }
-        didComplete = true
+        guard markCompleted() else { return }
         continuation?.resume(throwing: error ?? ShazamError.noMatch)
         cleanup()
+    }
+
+    private func markCompleted() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !completed else { return false }
+        completed = true
+        return true
     }
 
     private func cleanup() {

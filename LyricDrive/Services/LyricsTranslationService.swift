@@ -83,7 +83,7 @@ actor LyricsTranslationService {
     }
 
     private func translateText(_ text: String) async throws -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = TextRepair.repairMojibake(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw LyricsTranslationError.emptyInput }
 
         if let cached = cache[trimmed] {
@@ -95,11 +95,23 @@ actor LyricsTranslationService {
             return trimmed
         }
 
-        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+        do {
+            let translated = try await translateWithMyMemory(trimmed)
+            cache[trimmed] = translated
+            return translated
+        } catch {
+            let translated = try await translateWithGoogle(trimmed)
+            cache[trimmed] = translated
+            return translated
+        }
+    }
+
+    private func translateWithMyMemory(_ text: String) async throws -> String {
+        guard let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
             throw LyricsTranslationError.providerFailed
         }
 
-        let source = sourceLanguageCode(for: trimmed)
+        let source = sourceLanguageCode(for: text)
         guard let url = URL(string: "https://api.mymemory.translated.net/get?q=\(encoded)&langpair=\(source)|en") else {
             throw LyricsTranslationError.providerFailed
         }
@@ -111,16 +123,58 @@ actor LyricsTranslationService {
 
         let payload = try JSONDecoder().decode(MyMemoryResponse.self, from: data)
         let translated = payload.responseData.translatedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !translated.isEmpty else { throw LyricsTranslationError.invalidResponse }
+        guard isUsableEnglishTranslation(translated, original: text) else {
+            throw LyricsTranslationError.invalidResponse
+        }
 
-        cache[trimmed] = translated
+        return translated
+    }
+
+    private func translateWithGoogle(_ text: String) async throws -> String {
+        guard var components = URLComponents(string: "https://translate.googleapis.com/translate_a/single") else {
+            throw LyricsTranslationError.providerFailed
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "client", value: "gtx"),
+            URLQueryItem(name: "sl", value: "auto"),
+            URLQueryItem(name: "tl", value: "en"),
+            URLQueryItem(name: "dt", value: "t"),
+            URLQueryItem(name: "q", value: text)
+        ]
+
+        guard let url = components.url else { throw LyricsTranslationError.providerFailed }
+
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw LyricsTranslationError.providerFailed
+        }
+
+        let object = try JSONSerialization.jsonObject(with: data)
+        guard let root = object as? [Any],
+              let sentenceGroups = root.first as? [Any] else {
+            throw LyricsTranslationError.invalidResponse
+        }
+
+        let translated = sentenceGroups.compactMap { item -> String? in
+            guard let segment = item as? [Any] else { return nil }
+            return segment.first as? String
+        }
+        .joined()
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard isUsableEnglishTranslation(translated, original: text) else {
+            throw LyricsTranslationError.invalidResponse
+        }
+
         return translated
     }
 
     private func sourceLanguageCode(for text: String) -> String {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
-        guard let language = recognizer.dominantLanguage?.rawValue else { return "auto" }
+        guard let language = recognizer.dominantLanguage?.rawValue,
+              language != "und" else { return "auto" }
 
         switch language {
         case "zh-Hans": return "zh-CN"
@@ -130,10 +184,30 @@ actor LyricsTranslationService {
     }
 
     private func isLikelyEnglish(_ text: String) -> Bool {
+        guard !TextRepair.looksLikeMojibake(text) else { return false }
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         guard let language = recognizer.dominantLanguage else { return false }
         return language == .english
+    }
+
+    private func isUsableEnglishTranslation(_ translated: String, original: String) -> Bool {
+        let trimmed = translated.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard !TextRepair.looksLikePercentEncodedBytes(trimmed) else { return false }
+        guard !TextRepair.looksLikeMojibake(trimmed) else { return false }
+
+        if let decoded = trimmed.removingPercentEncoding,
+           decoded != trimmed,
+           !isLikelyEnglish(decoded) {
+            return false
+        }
+
+        if trimmed == original, !isLikelyEnglish(original) {
+            return false
+        }
+
+        return true
     }
 }
 
@@ -143,6 +217,47 @@ private struct MyMemoryResponse: Decodable {
 
 private struct MyMemoryResponseData: Decodable {
     let translatedText: String
+}
+
+private enum TextRepair {
+    static func repairMojibake(_ text: String) -> String {
+        guard looksLikeMojibake(text) else { return text }
+
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(text.unicodeScalars.count)
+
+        for scalar in text.unicodeScalars {
+            guard scalar.value <= UInt8.max else { return text }
+            bytes.append(UInt8(scalar.value))
+        }
+
+        guard let repaired = String(data: Data(bytes), encoding: .utf8),
+              !looksLikeMojibake(repaired) else {
+            return text
+        }
+
+        return repaired
+    }
+
+    static func looksLikeMojibake(_ text: String) -> Bool {
+        let markers = ["\u{00E0}", "\u{00E2}", "\u{00C3}", "\u{00C2}", "\u{FFFD}"]
+        let markerCount = markers.reduce(0) { total, marker in
+            total + text.components(separatedBy: marker).count - 1
+        }
+        guard markerCount >= 3 else { return false }
+        return text.contains("\u{00B0}")
+            || text.contains("\u{00B1}")
+            || text.contains("\u{0081}")
+            || text.contains("\u{008D}")
+    }
+
+    static func looksLikePercentEncodedBytes(_ text: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: #"%[0-9A-Fa-f]{2}"#) else {
+            return false
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.numberOfMatches(in: text, range: range) >= 3
+    }
 }
 
 private extension Array {
