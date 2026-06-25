@@ -117,7 +117,7 @@ struct LyricsView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if viewModel.currentSong != nil {
+                if viewModel.currentSong != nil, viewModel.canControlPlayback {
                     MediaControlsBar(
                         isPlaying: viewModel.isPlaying,
                         onPlayPause: viewModel.togglePlayPause,

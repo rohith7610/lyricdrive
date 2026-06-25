@@ -49,6 +49,8 @@ private enum SongQueryNormalizer {
         cleaned = cleaned
             .replacingOccurrences(of: "\u{2013}", with: "-")
             .replacingOccurrences(of: "\u{2014}", with: "-")
+            .replacingOccurrences(of: #"(?i)\s*-\s*topic$"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\s*\|\s*youtube\s+music$"#, with: "", options: .regularExpression)
         cleaned = stripArtistPrefix(from: cleaned, artist: artist)
         return collapseWhitespace(cleaned)
     }
@@ -131,7 +133,9 @@ private enum SongQueryNormalizer {
     }
 
     private static func artistVariants(for artist: String) -> [String] {
-        let cleaned = collapseWhitespace(artist)
+        let cleaned = collapseWhitespace(
+            artist.replacingOccurrences(of: #"(?i)\s*-\s*topic$"#, with: "", options: .regularExpression)
+        )
         guard !isUnknownArtist(cleaned) else { return [] }
 
         var variants = [cleaned]

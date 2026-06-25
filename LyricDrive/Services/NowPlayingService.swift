@@ -194,7 +194,7 @@ final class NowPlayingService: ObservableObject {
 
         guard var resolvedTitle = title, !resolvedTitle.isEmpty else { return nil }
 
-        if artist == nil || artist?.isEmpty == true {
+        if artist == nil || artist?.isEmpty == true || isPlaceholderArtist(artist) {
             let normalizedTitle = resolvedTitle.replacingOccurrences(of: "\u{2014}", with: "-")
             let parts = normalizedTitle.split(separator: "-", maxSplits: 1).map {
                 $0.trimmingCharacters(in: .whitespaces)
@@ -203,6 +203,10 @@ final class NowPlayingService: ObservableObject {
                 artist = String(parts[0])
                 resolvedTitle = String(parts[1])
             }
+        }
+
+        if let cleanedArtist = artist.map(cleanArtistName), !cleanedArtist.isEmpty {
+            artist = cleanedArtist
         }
 
         let resolvedArtist = (artist?.isEmpty == false) ? artist! : "Unknown Artist"
@@ -255,5 +259,21 @@ final class NowPlayingService: ObservableObject {
             if lower.contains("artist") { return trimmed }
         }
         return nil
+    }
+
+    private func cleanArtistName(_ artist: String) -> String {
+        artist
+            .replacingOccurrences(of: #"(?i)\s*-\s*topic$"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isPlaceholderArtist(_ artist: String?) -> Bool {
+        guard let artist else { return true }
+        let cleaned = cleanArtistName(artist).lowercased()
+        return cleaned.isEmpty
+            || cleaned == "unknown artist"
+            || cleaned == "youtube"
+            || cleaned == "youtube music"
+            || cleaned == "various artists"
     }
 }

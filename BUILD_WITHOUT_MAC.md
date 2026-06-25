@@ -90,7 +90,7 @@ Services like **GitHub Codespaces does NOT support Xcode**. You still need a rea
 |-------|--------|
 | Default entitlements | App Groups only — works with free provisioning |
 | CarPlay | Optional — swap to `LyricDrive.carplay.entitlements` only if Apple grants CarPlay entitlement |
-| Bundle ID | Change `com.lyricdrive.app` in `project.yml` to something unique, e.g. `com.yourname.lyricdrive` |
+| Bundle ID | Change `com.lyricdrive.app` in `project.yml` to something unique, e.g. `com.yourname.lyricdrive`; if you change it, update the app group in both entitlement files and `SharedCurrentLyricStore.swift` |
 | Widget | Must use same App Group in main app + widget entitlements |
 
 ---

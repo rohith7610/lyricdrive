@@ -23,7 +23,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.lyricdrive.app
         INFOPLIST_FILE: LyricDrive/Resources/Info.plist
-        CODE_SIGN_ENTITLEMENTS: LyricDrive/Resources/LyricDrive.carplay.entitlements
+        CODE_SIGN_ENTITLEMENTS: LyricDrive/Resources/LyricDrive.entitlements
         GENERATE_INFOPLIST_FILE: false
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 1.2.12

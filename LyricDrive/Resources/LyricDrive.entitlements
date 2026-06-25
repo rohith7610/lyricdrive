@@ -4,7 +4,7 @@
 <dict>
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>group.com.yourname.lyricdrive</string>
+        <string>group.com.lyricdrive.app</string>
     </array>
 </dict>
 </plist>

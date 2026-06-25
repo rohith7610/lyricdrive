@@ -30,6 +30,7 @@ final class LyricsViewModel {
     var activeLineIndex: Int?
     var isPlaying = false
     var playbackPosition: TimeInterval = 0
+    var canControlPlayback = false
     var isFavorite = false
     var detectionSource: SongSource?
     var userHint: String?
@@ -160,6 +161,15 @@ final class LyricsViewModel {
                 }
             }
             .store(in: &cancellables)
+
+        nowPlayingService.$diagnostics
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] diagnostics in
+                Task { @MainActor in
+                    self?.canControlPlayback = diagnostics.appleMusicItemTitle != nil
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func refreshNowPlaying() {
@@ -276,6 +286,7 @@ final class LyricsViewModel {
     private func handleNowPlayingChange(_ state: NowPlayingState) async {
         isPlaying = state.isPlaying
         playbackPosition = state.playbackPosition
+        canControlPlayback = nowPlayingService.diagnostics.appleMusicItemTitle != nil
 
         guard let song = state.song else {
             if hasDisplayedLyrics {

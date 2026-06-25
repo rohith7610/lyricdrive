@@ -50,6 +50,8 @@ final class LyricsSyncEngine: ObservableObject {
     func seekOffset(_ offset: TimeInterval) {
         currentPosition = max(0, currentPosition + offset)
         lastKnownPosition = currentPosition
+        lastSystemPosition = currentPosition
+        lastTickDate = Date()
         updateActiveLine()
     }
 
@@ -110,8 +112,9 @@ final class LyricsSyncEngine: ObservableObject {
 
     private func tickInterpolation() {
         guard isPlaying, lastKnownRate > 0 else { return }
-        let elapsed = Date().timeIntervalSince(lastTickDate)
-        lastTickDate = Date()
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastTickDate)
+        lastTickDate = now
         currentPosition += elapsed * lastKnownRate
         lastKnownPosition = currentPosition
         updateActiveLine()

@@ -1,7 +1,7 @@
 import Foundation
 
 enum LyricDriveAppGroup {
-    static let identifier = "group.com.yourname.lyricdrive"
+    static let identifier = "group.com.lyricdrive.app"
 }
 
 struct CurrentLyricSnapshot: Codable, Equatable, Sendable {
