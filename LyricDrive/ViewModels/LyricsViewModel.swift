@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import WidgetKit
 
 enum LyricsLoadingState: Equatable {
     case idle
@@ -54,6 +55,8 @@ final class LyricsViewModel {
     private var noMetadataPollCount = 0
     private var lastShazamAttempt = Date.distantPast
     private var isShazamRunning = false
+    private var lastPublishedWidgetLine: String?
+    private var lastWidgetReloadDate = Date.distantPast
 
     init(
         nowPlayingService: NowPlayingService,
@@ -383,9 +386,19 @@ final class LyricsViewModel {
     }
 
     private func startInferredSyncIfNeeded(for song: Song) {
-        guard nowPlayingService.state.song == nil else { return }
-        guard nowPlayingService.otherAudioIsPlaying || detectionSource == .shazam || detectionSource == .manualSearch else { return }
-        syncEngine.startInferredPlayback(songID: song.id, from: 0)
+        let state = nowPlayingService.state
+        if state.song?.id == song.id, state.playbackPosition > 0.1 {
+            return
+        }
+
+        guard detectionSource == .manualSearch
+            || detectionSource == .shazam
+            || nowPlayingService.otherAudioIsPlaying
+            || state.song?.id == song.id else {
+            return
+        }
+
+        syncEngine.startInferredPlayback(songID: song.id, from: max(0, state.playbackPosition))
     }
 
     private func publishCurrentLyricSnapshot() {
@@ -407,6 +420,18 @@ final class LyricsViewModel {
                 updatedAt: .now
             )
         )
+        reloadWidgetIfNeeded(for: lyrics)
+    }
+
+    private func reloadWidgetIfNeeded(for lyrics: String) {
+        let now = Date()
+        guard lyrics != lastPublishedWidgetLine || now.timeIntervalSince(lastWidgetReloadDate) > 20 else {
+            return
+        }
+
+        lastPublishedWidgetLine = lyrics
+        lastWidgetReloadDate = now
+        WidgetCenter.shared.reloadTimelines(ofKind: "LyricDriveCurrentLyricsWidget")
     }
 
     var activeLine: LyricLine? {

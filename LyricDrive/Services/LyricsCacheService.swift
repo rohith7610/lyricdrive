@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import WidgetKit
 
 @MainActor
 final class LyricsCacheService {
@@ -111,6 +112,7 @@ final class LyricsCacheService {
             try context.delete(model: FavoriteSong.self)
             saveContext()
             SharedCurrentLyricStore.clear()
+            WidgetCenter.shared.reloadTimelines(ofKind: "LyricDriveCurrentLyricsWidget")
             AppLogger.cache.info("All cached data cleared")
         } catch {
             lastError = error.localizedDescription

@@ -29,7 +29,7 @@ struct LyricTimelineProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<LyricEntry>) -> Void) {
         let entry = entryFromSharedDefaults()
-        completion(Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(60))))
+        completion(Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(15))))
     }
 
     private func entryFromSharedDefaults() -> LyricEntry {
@@ -53,6 +53,7 @@ struct LyricDriveCurrentLyricsWidget: Widget {
         .configurationDisplayName("LyricDrive Lyrics")
         .description("Shows the current song and lyric line from LyricDrive.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .contentMarginsDisabled()
     }
 }
 

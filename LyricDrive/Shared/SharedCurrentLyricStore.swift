@@ -32,6 +32,7 @@ enum SharedCurrentLyricStore {
         defaults.set(snapshot.songTitle, forKey: Keys.songTitle)
         defaults.set(snapshot.currentLyrics, forKey: Keys.currentLyrics)
         defaults.set(snapshot.updatedAt.timeIntervalSince1970, forKey: Keys.updatedAt)
+        defaults.synchronize()
     }
 
     static func read() -> CurrentLyricSnapshot {
@@ -53,5 +54,6 @@ enum SharedCurrentLyricStore {
         defaults.removeObject(forKey: Keys.songTitle)
         defaults.removeObject(forKey: Keys.currentLyrics)
         defaults.removeObject(forKey: Keys.updatedAt)
+        defaults.synchronize()
     }
 }
