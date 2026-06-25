@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "hermes-agent": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        ".agents/hermes-agent",
+        "run",
+        "--extra",
+        "mcp",
+        "hermes",
+        "mcp",
+        "serve"
+      ],
+      "env": {
+        "HERMES_HOME": ".agents/hermes-home"
+      }
+    }
+  }
+}

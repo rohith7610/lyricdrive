@@ -24,3 +24,6 @@ Package.resolved
 # Secrets
 *.env
 Secrets.swift
+
+# Local agent state
+.agents/hermes-home/
