@@ -57,7 +57,7 @@ struct LyricWidgetProvider: TimelineProvider {
         return LyricWidgetEntry(
             date: snapshot.updatedAt,
             songTitle: snapshot.songTitle,
-            lyricLine: snapshot.currentLyricLine,
+            lyricLine: snapshot.lyricLine,
             isPlaying: snapshot.isPlaying
         )
     }
