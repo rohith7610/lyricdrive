@@ -27,3 +27,4 @@ Secrets.swift
 
 # Local agent state
 .agents/hermes-home/
+.hermes-runtime/

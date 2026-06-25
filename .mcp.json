@@ -1,19 +1,13 @@
 {
   "mcpServers": {
     "hermes-agent": {
-      "command": "uv",
+      "command": ".hermes-runtime/venv/Scripts/python.exe",
       "args": [
-        "--directory",
-        ".agents/hermes-agent",
-        "run",
-        "--extra",
-        "mcp",
-        "hermes",
-        "mcp",
-        "serve"
+        "-m",
+        "mcp_serve"
       ],
       "env": {
-        "HERMES_HOME": ".agents/hermes-home"
+        "HERMES_HOME": ".hermes-runtime/home"
       }
     }
   }
