@@ -96,6 +96,15 @@ struct LyricsView: View {
                         Button("Identify with Microphone", systemImage: "waveform") {
                             requestShazam()
                         }
+                        if viewModel.hasDisplayedLyrics {
+                            Divider()
+                            Button("Lyrics Earlier", systemImage: "gobackward.5") {
+                                viewModel.adjustLyricSync(by: -5)
+                            }
+                            Button("Lyrics Later", systemImage: "goforward.5") {
+                                viewModel.adjustLyricSync(by: 5)
+                            }
+                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }

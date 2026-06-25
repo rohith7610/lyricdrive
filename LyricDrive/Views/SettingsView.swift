@@ -49,7 +49,8 @@ struct SettingsView: View {
                 }
 
                 Section("Widget") {
-                    Text("Add the LyricDrive widget to your Lock Screen or Home Screen after opening the app and loading lyrics once.")
+                    Toggle("Live Activity Lyrics", isOn: $settings.enableLiveActivity)
+                    Text("Live Activities update the Lock Screen while lyrics are loaded. The Home Screen widget is a snapshot and refreshes less often by design.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

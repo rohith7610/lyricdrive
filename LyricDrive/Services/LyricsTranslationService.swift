@@ -96,25 +96,28 @@ actor LyricsTranslationService {
         }
 
         do {
-            let translated = try await translateWithMyMemory(trimmed)
+            let translated = try await translateWithGoogle(trimmed)
             cache[trimmed] = translated
             return translated
         } catch {
-            let translated = try await translateWithGoogle(trimmed)
+            let translated = try await translateWithMyMemory(trimmed)
             cache[trimmed] = translated
             return translated
         }
     }
 
     private func translateWithMyMemory(_ text: String) async throws -> String {
-        guard let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+        guard var components = URLComponents(string: "https://api.mymemory.translated.net/get") else {
             throw LyricsTranslationError.providerFailed
         }
 
         let source = sourceLanguageCode(for: text)
-        guard let url = URL(string: "https://api.mymemory.translated.net/get?q=\(encoded)&langpair=\(source)|en") else {
-            throw LyricsTranslationError.providerFailed
-        }
+        components.queryItems = [
+            URLQueryItem(name: "q", value: text),
+            URLQueryItem(name: "langpair", value: "\(source)|en")
+        ]
+
+        guard let url = components.url else { throw LyricsTranslationError.providerFailed }
 
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -122,7 +125,8 @@ actor LyricsTranslationService {
         }
 
         let payload = try JSONDecoder().decode(MyMemoryResponse.self, from: data)
-        let translated = payload.responseData.translatedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let translated = TextRepair.decodeHTMLEntities(payload.responseData.translatedText)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard isUsableEnglishTranslation(translated, original: text) else {
             throw LyricsTranslationError.invalidResponse
         }
@@ -163,11 +167,12 @@ actor LyricsTranslationService {
         .joined()
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard isUsableEnglishTranslation(translated, original: text) else {
+        let decoded = TextRepair.decodeHTMLEntities(translated)
+        guard isUsableEnglishTranslation(decoded, original: text) else {
             throw LyricsTranslationError.invalidResponse
         }
 
-        return translated
+        return decoded
     }
 
     private func sourceLanguageCode(for text: String) -> String {
@@ -207,7 +212,7 @@ actor LyricsTranslationService {
             return false
         }
 
-        return true
+        return TextRepair.looksReadable(trimmed)
     }
 }
 
@@ -244,11 +249,13 @@ private enum TextRepair {
         let markerCount = markers.reduce(0) { total, marker in
             total + text.components(separatedBy: marker).count - 1
         }
-        guard markerCount >= 3 else { return false }
+        guard markerCount >= 2 else { return false }
         return text.contains("\u{00B0}")
             || text.contains("\u{00B1}")
             || text.contains("\u{0081}")
             || text.contains("\u{008D}")
+            || text.contains("\u{00A1}")
+            || text.contains("\u{00A2}")
     }
 
     static func looksLikePercentEncodedBytes(_ text: String) -> Bool {
@@ -257,6 +264,31 @@ private enum TextRepair {
         }
         let range = NSRange(text.startIndex..., in: text)
         return regex.numberOfMatches(in: text, range: range) >= 3
+    }
+
+    static func looksReadable(_ text: String) -> Bool {
+        let scalars = text.unicodeScalars.filter { !$0.properties.isWhitespace }
+        guard !scalars.isEmpty else { return false }
+
+        let replacementCount = scalars.filter { $0.value == 0xFFFD }.count
+        guard Double(replacementCount) / Double(scalars.count) < 0.02 else { return false }
+
+        let printableCount = scalars.filter { scalar in
+            scalar.value >= 0x20 && scalar.value != 0x7F
+        }.count
+
+        return Double(printableCount) / Double(scalars.count) > 0.95
+    }
+
+    static func decodeHTMLEntities(_ text: String) -> String {
+        guard text.contains("&") else { return text }
+        return text
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&apos;", with: "'")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
     }
 }
 

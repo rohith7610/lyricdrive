@@ -11,6 +11,8 @@ final class LyricsSyncEngine: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var lyrics: ParsedLyrics = .empty
     private var smoothTimer: Timer?
+    private var currentSongID: String?
+    private var lastSystemPosition: TimeInterval = 0
     private var lastKnownRate: Double = 0
     private var lastKnownPosition: TimeInterval = 0
     private var lastTickDate = Date()
@@ -40,11 +42,35 @@ final class LyricsSyncEngine: ObservableObject {
     }
 
     private func handleStateUpdate(_ state: NowPlayingState) {
+        let incomingSongID = state.song?.id
+        let songChanged = incomingSongID != currentSongID
+        if songChanged {
+            currentSongID = incomingSongID
+            currentPosition = max(0, state.playbackPosition)
+            lastKnownPosition = currentPosition
+            lastSystemPosition = currentPosition
+        }
+
         isPlaying = state.isPlaying
         lastKnownRate = state.playbackRate
-        lastKnownPosition = state.playbackPosition
         lastTickDate = Date()
-        currentPosition = state.playbackPosition
+
+        let systemPosition = max(0, state.playbackPosition)
+        let systemMoved = abs(systemPosition - lastSystemPosition) > 0.25
+        let hasUsableSystemPosition = systemPosition > 0.1
+        let shouldTrustSystemPosition = songChanged
+            || systemMoved
+            || (hasUsableSystemPosition && abs(systemPosition - currentPosition) > 3)
+            || (currentPosition <= 0.1 && hasUsableSystemPosition)
+
+        if shouldTrustSystemPosition {
+            currentPosition = systemPosition
+            lastKnownPosition = systemPosition
+        } else {
+            lastKnownPosition = currentPosition
+        }
+        lastSystemPosition = systemPosition
+
         updateActiveLine()
 
         if state.isPlaying {
@@ -76,7 +102,9 @@ final class LyricsSyncEngine: ObservableObject {
     }
 
     private func updateActiveLine() {
-        activeLineIndex = lyrics.activeLineIndex(at: currentPosition)
+        let newIndex = lyrics.activeLineIndex(at: currentPosition)
+        guard newIndex != activeLineIndex else { return }
+        activeLineIndex = newIndex
     }
 
     var activeLine: LyricLine? {

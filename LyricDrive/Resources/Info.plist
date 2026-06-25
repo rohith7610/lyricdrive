@@ -57,5 +57,7 @@
     <string>LyricDrive reads Now Playing information to sync lyrics with your music.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
 </dict>
 </plist>

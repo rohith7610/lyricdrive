@@ -39,6 +39,7 @@ targets:
     platform: iOS
     sources:
       - LyricDriveWidget
+      - LyricDrive/Shared/LyricActivityAttributes.swift
     settings:
       base:
         PRODUCT_NAME: LyricDriveWidget

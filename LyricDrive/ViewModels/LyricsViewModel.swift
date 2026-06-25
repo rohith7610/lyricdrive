@@ -245,7 +245,7 @@ final class LyricsViewModel {
         defer { isShazamRunning = false }
 
         do {
-            let song = try await shazamService.recognize()
+            let song = try await shazamService.recognize(duration: isAutomatic ? 12 : 10)
             detectionSource = .shazam
             noMetadataPollCount = 0
             await loadSong(song, source: .shazam)
@@ -275,6 +275,7 @@ final class LyricsViewModel {
     func togglePlayPause() { mediaControlService.togglePlayPause() }
     func skipNext() { mediaControlService.skipToNext() }
     func skipPrevious() { mediaControlService.skipToPrevious() }
+    func adjustLyricSync(by offset: TimeInterval) { syncEngine.seekOffset(offset) }
 
     private func handleNowPlayingChange(_ state: NowPlayingState) async {
         isPlaying = state.isPlaying

@@ -16,8 +16,7 @@ final class SettingsViewModel {
 
     init(themeManager: ThemeManager) {
         self.themeManager = themeManager
-        enableLiveActivity = false
-        UserDefaults.standard.set(false, forKey: "enableLiveActivity")
+        enableLiveActivity = UserDefaults.standard.object(forKey: "enableLiveActivity") as? Bool ?? true
         // On by default so LyricDrive can identify songs when iOS hides Now Playing metadata.
         if UserDefaults.standard.bool(forKey: "didEnableShazamFallbackByDefault") {
             enableShazamFallback = UserDefaults.standard.object(forKey: "enableShazamFallback") as? Bool ?? true
