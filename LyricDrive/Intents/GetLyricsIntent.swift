@@ -6,15 +6,16 @@ struct GetLyricsIntent: AppIntent {
     static var description = IntentDescription("Returns the current LyricDrive lyric line.")
     static var openAppWhenRun = false
 
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws -> IntentResultContainer<String> {
         let snapshot = SharedCurrentLyricStore.read()
         if snapshot.updatedAt != .distantPast,
            !snapshot.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return .result(value: "\(snapshot.songTitle)\n\(snapshot.currentLyrics)")
         }
 
-        let lyrics = await MockLRCLibLyricsFetcher.currentLyrics()
-        return .result(value: lyrics)
+        return .result(
+            value: "No LyricDrive lyrics are loaded yet. Open LyricDrive, load a song, then run this Shortcut again."
+        )
     }
 }
 
@@ -31,10 +32,4 @@ struct LyricDriveShortcutsProvider: AppShortcutsProvider {
     }
 
     static var shortcutTileColor: ShortcutTileColor = .blue
-}
-
-private enum MockLRCLibLyricsFetcher {
-    static func currentLyrics() async -> String {
-        "No LyricDrive lyrics are loaded yet. Open LyricDrive, load a song, then run this Shortcut again."
-    }
 }

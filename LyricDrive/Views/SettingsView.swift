@@ -72,7 +72,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Version", value: "1.2.6")
+                    LabeledContent("Version", value: "1.2.7")
                     LabeledContent("Lyrics Provider", value: "LRCLIB")
                     LabeledContent("Use", value: "Personal")
                 }
