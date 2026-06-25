@@ -1,6 +1,7 @@
 # LyricDrive
 
 Personal iOS lyrics app — large readable synced lyrics while driving. Built with SwiftUI for **iOS 18+**.
+still in building process, solving one problem at a time
 
 > **No Mac?** See **[BUILD_WITHOUT_MAC.md](BUILD_WITHOUT_MAC.md)** for GitHub Actions build + Windows sideload instructions.
 
