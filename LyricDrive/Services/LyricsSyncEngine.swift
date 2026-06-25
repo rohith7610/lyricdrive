@@ -35,6 +35,18 @@ final class LyricsSyncEngine: ObservableObject {
         updateActiveLine()
     }
 
+    func startInferredPlayback(songID: String, from position: TimeInterval = 0) {
+        currentSongID = songID
+        currentPosition = max(0, position)
+        lastKnownPosition = currentPosition
+        lastSystemPosition = currentPosition
+        lastKnownRate = 1
+        lastTickDate = Date()
+        isPlaying = true
+        updateActiveLine()
+        startSmoothTimer()
+    }
+
     func seekOffset(_ offset: TimeInterval) {
         currentPosition = max(0, currentPosition + offset)
         lastKnownPosition = currentPosition
@@ -42,6 +54,10 @@ final class LyricsSyncEngine: ObservableObject {
     }
 
     private func handleStateUpdate(_ state: NowPlayingState) {
+        if state.song == nil, currentSongID != nil, !lyrics.lines.isEmpty {
+            return
+        }
+
         let incomingSongID = state.song?.id
         let songChanged = incomingSongID != currentSongID
         if songChanged {

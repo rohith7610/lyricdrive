@@ -18,7 +18,6 @@ final class AppDependencyContainer {
     let lyricsCacheService: LyricsCacheService
     let lyricsSyncEngine: LyricsSyncEngine
     let mediaControlService: MediaControlService
-    let liveActivityManager: LiveActivityManager
 
     let lyricsViewModel: LyricsViewModel
     let searchViewModel: SearchViewModel
@@ -47,7 +46,6 @@ final class AppDependencyContainer {
         lyricsCacheService = LyricsCacheService(modelContainer: modelContainer)
         lyricsSyncEngine = LyricsSyncEngine(nowPlayingService: nowPlayingService)
         mediaControlService = MediaControlService()
-        liveActivityManager = LiveActivityManager(settings: settingsViewModel)
 
         favoritesViewModel = FavoritesViewModel(cacheService: lyricsCacheService)
         searchViewModel = SearchViewModel(
@@ -63,7 +61,6 @@ final class AppDependencyContainer {
             cacheService: lyricsCacheService,
             syncEngine: lyricsSyncEngine,
             mediaControlService: mediaControlService,
-            liveActivityManager: liveActivityManager,
             favoritesViewModel: favoritesViewModel,
             settings: settingsViewModel,
             tabRouter: tabRouter,

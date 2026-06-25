@@ -42,7 +42,7 @@ struct LyricsView: View {
                             )
 
                             if viewModel.isTranslating {
-                                ProgressView("Translating to English...")
+                                ProgressView("Transliterating...")
                                     .padding()
                                     .background(.ultraThinMaterial)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -71,15 +71,15 @@ struct LyricsView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if viewModel.hasDisplayedLyrics {
                         Button {
-                            Task { await viewModel.toggleEnglishTranslation() }
+                            Task { await viewModel.toggleLatinTransliteration() }
                         } label: {
                             if viewModel.isTranslating {
                                 ProgressView()
                             } else {
-                                Image(systemName: viewModel.showEnglishTranslation ? "character.bubble.fill" : "character.bubble")
+                                Image(systemName: viewModel.showLatinTransliteration ? "character.bubble.fill" : "character.bubble")
                             }
                         }
-                        .accessibilityLabel("Translate to English")
+                        .accessibilityLabel("Transliterate lyrics")
 
                         Button {
                             viewModel.toggleFavorite()

@@ -149,18 +149,34 @@ struct AppConstantsTests {
     }
 }
 
-@Suite("Shared Lyric Snapshot Tests")
-struct SharedLyricSnapshotTests {
+@Suite("Current Lyric Snapshot Tests")
+struct CurrentLyricSnapshotTests {
     @Test("Default empty snapshot has placeholder text")
     func emptySnapshot() {
-        #expect(SharedLyricSnapshot.empty.songTitle == "-")
-        #expect(!SharedLyricSnapshot.empty.currentLyricLine.isEmpty)
+        #expect(CurrentLyricSnapshot.empty.songTitle == "LyricDrive")
+        #expect(!CurrentLyricSnapshot.empty.currentLyrics.isEmpty)
     }
 
     @Test("Snapshot equality")
     func equality() {
-        let a = SharedLyricSnapshot(songTitle: "A", artistName: "B", currentLyricLine: "C", isPlaying: true, updatedAt: .now)
+        let a = CurrentLyricSnapshot(songTitle: "A", currentLyrics: "C", updatedAt: .now)
         let b = a
         #expect(a == b)
+    }
+}
+
+@Suite("Lyrics Transliteration Tests")
+struct LyricsTransliterationTests {
+    @Test("Transliterates Telugu without translating meaning")
+    func teluguTransliteration() async throws {
+        let service = LyricsTranslationService()
+        let lyrics = ParsedLyrics(
+            lines: [LyricLine(timestamp: 0, text: "అణువణువూ")],
+            isSynced: true,
+            plainText: nil
+        )
+
+        let result = try await service.translateLyrics(lyrics)
+        #expect(result.lines.first?.text.lowercased() == "anuvanuvu")
     }
 }

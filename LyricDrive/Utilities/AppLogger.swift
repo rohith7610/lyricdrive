@@ -8,7 +8,6 @@ enum AppLogger {
     static let lyrics = Logger(subsystem: subsystem, category: "Lyrics")
     static let cache = Logger(subsystem: subsystem, category: "Cache")
     static let shazam = Logger(subsystem: subsystem, category: "Shazam")
-    static let liveActivity = Logger(subsystem: subsystem, category: "LiveActivity")
     static let carPlay = Logger(subsystem: subsystem, category: "CarPlay")
 }
 

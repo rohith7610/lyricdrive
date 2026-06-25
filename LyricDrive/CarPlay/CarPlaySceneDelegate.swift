@@ -70,9 +70,9 @@ final class CarPlayLyricsCoordinator {
         let line = vm.activeLine?.text ?? ""
         let song = vm.currentSong?.title ?? ""
         let lineCount = vm.displayLyrics.lines.count
-        let translated = vm.showEnglishTranslation
+        let transliterated = vm.showLatinTransliteration
         let state = String(describing: vm.loadingState)
-        return "\(song)|\(idx)|\(line)|\(lineCount)|\(translated)|\(state)"
+        return "\(song)|\(idx)|\(line)|\(lineCount)|\(transliterated)|\(state)"
     }
 
     private func pushRootTemplate(animated: Bool) {
@@ -116,8 +116,8 @@ final class CarPlayLyricsCoordinator {
             } else {
                 items.append(CPInformationItem(title: "Lyrics", detail: "No lines loaded"))
             }
-            if vm.showEnglishTranslation {
-                items.append(CPInformationItem(title: "EN", detail: "English translation"))
+            if vm.showLatinTransliteration {
+                items.append(CPInformationItem(title: "Latin", detail: "Transliteration"))
             }
         default:
             items.append(CPInformationItem(
@@ -178,8 +178,8 @@ final class CarPlayLyricsCoordinator {
     private func appendLoadedLyricsItems(to items: inout [CPInformationItem], vm: LyricsViewModel) {
         let lyrics = vm.displayLyrics
 
-        if vm.showEnglishTranslation {
-            items.append(CPInformationItem(title: "Language", detail: "English translation"))
+        if vm.showLatinTransliteration {
+            items.append(CPInformationItem(title: "Text", detail: "Latin transliteration"))
         }
 
         if lyrics.isSynced, !lyrics.lines.isEmpty {

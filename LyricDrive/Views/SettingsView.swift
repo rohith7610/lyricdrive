@@ -49,14 +49,13 @@ struct SettingsView: View {
                 }
 
                 Section("Widget") {
-                    Toggle("Live Activity Lyrics", isOn: $settings.enableLiveActivity)
-                    Text("Live Activities update the Lock Screen while lyrics are loaded. The Home Screen widget is a snapshot and refreshes less often by design.")
+                    Text("The LyricDrive widget reads the current song and lyric line from the shared App Group snapshot.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Translation") {
-                    Text("Tap the speech bubble on the Lyrics screen to show English translations. Requires internet.")
+                Section("Transliteration") {
+                    Text("Tap the speech bubble on the Lyrics screen to show Latin-script lyrics without translating the meaning.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -73,7 +72,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Version", value: "1.2.4")
+                    LabeledContent("Version", value: "1.2.5")
                     LabeledContent("Lyrics Provider", value: "LRCLIB")
                     LabeledContent("Use", value: "Personal")
                 }

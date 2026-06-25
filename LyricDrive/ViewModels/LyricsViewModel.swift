@@ -32,7 +32,7 @@ final class LyricsViewModel {
     var isFavorite = false
     var detectionSource: SongSource?
     var userHint: String?
-    var showEnglishTranslation = false
+    var showLatinTransliteration = false
     var isTranslating = false
     var translationMessage: String?
 
@@ -43,7 +43,6 @@ final class LyricsViewModel {
     private let cacheService: LyricsCacheService
     private let syncEngine: LyricsSyncEngine
     private let mediaControlService: MediaControlService
-    private let liveActivityManager: LiveActivityManager
     private let favoritesViewModel: FavoritesViewModel
     private let settings: SettingsViewModel
     private let tabRouter: TabRouter
@@ -64,7 +63,6 @@ final class LyricsViewModel {
         cacheService: LyricsCacheService,
         syncEngine: LyricsSyncEngine,
         mediaControlService: MediaControlService,
-        liveActivityManager: LiveActivityManager,
         favoritesViewModel: FavoritesViewModel,
         settings: SettingsViewModel,
         tabRouter: TabRouter,
@@ -77,7 +75,6 @@ final class LyricsViewModel {
         self.cacheService = cacheService
         self.syncEngine = syncEngine
         self.mediaControlService = mediaControlService
-        self.liveActivityManager = liveActivityManager
         self.favoritesViewModel = favoritesViewModel
         self.settings = settings
         self.tabRouter = tabRouter
@@ -85,28 +82,26 @@ final class LyricsViewModel {
     }
 
     var displayLyrics: ParsedLyrics {
-        if showEnglishTranslation, let translated = translatedLyrics {
-            return translated
+        if showLatinTransliteration, let transliterated = transliteratedLyrics {
+            return transliterated
         }
         return parsedLyrics
     }
 
-    private var translatedLyrics: ParsedLyrics?
+    private var transliteratedLyrics: ParsedLyrics?
 
-    func toggleEnglishTranslation() async {
-        if showEnglishTranslation {
-            showEnglishTranslation = false
+    func toggleLatinTransliteration() async {
+        if showLatinTransliteration {
+            showLatinTransliteration = false
             translationMessage = nil
-            publishSharedState()
-            updateLiveActivity()
+            publishCurrentLyricSnapshot()
             return
         }
 
-        if translatedLyrics != nil {
-            showEnglishTranslation = true
+        if transliteratedLyrics != nil {
+            showLatinTransliteration = true
             translationMessage = nil
-            publishSharedState()
-            updateLiveActivity()
+            publishCurrentLyricSnapshot()
             return
         }
 
@@ -115,12 +110,11 @@ final class LyricsViewModel {
         defer { isTranslating = false }
 
         do {
-            let translated = try await translationService.translateLyrics(parsedLyrics)
-            self.translatedLyrics = translated
-            showEnglishTranslation = true
-            translationMessage = "Showing English translation"
-            publishSharedState()
-            updateLiveActivity()
+            let transliterated = try await translationService.translateLyrics(parsedLyrics)
+            self.transliteratedLyrics = transliterated
+            showLatinTransliteration = true
+            translationMessage = "Showing Latin transliteration"
+            publishCurrentLyricSnapshot()
         } catch {
             translationMessage = error.localizedDescription
             AppLogger.lyrics.error("Translation failed: \(error.localizedDescription)")
@@ -140,8 +134,7 @@ final class LyricsViewModel {
             .sink { [weak self] index in
                 Task { @MainActor in
                     self?.activeLineIndex = index
-                    self?.publishSharedState()
-                    self?.updateLiveActivity()
+                    self?.publishCurrentLyricSnapshot()
                 }
             }
             .store(in: &cancellables)
@@ -151,7 +144,7 @@ final class LyricsViewModel {
             .sink { [weak self] playing in
                 Task { @MainActor in
                     self?.isPlaying = playing
-                    self?.publishSharedState()
+                    self?.publishCurrentLyricSnapshot()
                 }
             }
             .store(in: &cancellables)
@@ -282,6 +275,10 @@ final class LyricsViewModel {
         playbackPosition = state.playbackPosition
 
         guard let song = state.song else {
+            if hasDisplayedLyrics {
+                isPlaying = true
+                return
+            }
             noMetadataPollCount += 1
             if !hasDisplayedLyrics,
                loadingState != .recognizing,
@@ -365,15 +362,15 @@ final class LyricsViewModel {
 
     private func applyResult(_ result: LyricsResult, isOffline: Bool) {
         parsedLyrics = result.lyrics
-        translatedLyrics = nil
-        showEnglishTranslation = false
+        transliteratedLyrics = nil
+        showLatinTransliteration = false
         translationMessage = nil
         syncEngine.setLyrics(result.lyrics)
+        startInferredSyncIfNeeded(for: result.song)
         loadingState = isOffline ? .offline(result) : .loaded(result)
         tabRouter.showLyricsTab()
         favoritesViewModel.refresh()
-        publishSharedState()
-        startLiveActivityIfNeeded()
+        publishCurrentLyricSnapshot()
     }
 
     var hasDisplayedLyrics: Bool {
@@ -385,49 +382,30 @@ final class LyricsViewModel {
         }
     }
 
-    private func publishSharedState() {
+    private func startInferredSyncIfNeeded(for song: Song) {
+        guard nowPlayingService.state.song == nil else { return }
+        guard nowPlayingService.otherAudioIsPlaying || detectionSource == .shazam || detectionSource == .manualSearch else { return }
+        syncEngine.startInferredPlayback(songID: song.id, from: 0)
+    }
+
+    private func publishCurrentLyricSnapshot() {
         guard let song = currentSong else { return }
-        let line: String
-        if let active = activeLine?.text {
-            line = active
-        } else if let plain = displayLyrics.plainText {
-            line = String(plain.prefix(120))
+
+        let lyrics: String
+        if let activeLine {
+            lyrics = activeLine.text
+        } else if let plain = displayLyrics.plainText, !plain.isEmpty {
+            lyrics = String(plain.prefix(180))
         } else {
-            line = song.title
+            lyrics = song.title
         }
-        SharedLyricStore.write(
-            SharedLyricSnapshot(
+
+        SharedCurrentLyricStore.write(
+            CurrentLyricSnapshot(
                 songTitle: song.title,
-                artistName: song.artist,
-                currentLyricLine: line,
-                isPlaying: isPlaying,
+                currentLyrics: lyrics,
                 updatedAt: .now
             )
-        )
-    }
-
-    private func startLiveActivityIfNeeded() {
-        guard settings.enableLiveActivity else {
-            liveActivityManager.endActivity()
-            return
-        }
-        guard let song = currentSong else { return }
-        liveActivityManager.startActivity(
-            song: song,
-            currentLine: activeLine?.text ?? song.title,
-            nextLine: nextLineText,
-            isPlaying: isPlaying
-        )
-    }
-
-    private func updateLiveActivity() {
-        guard settings.enableLiveActivity else { return }
-        guard let song = currentSong else { return }
-        liveActivityManager.updateActivity(
-            currentLine: activeLine?.text ?? song.title,
-            nextLine: nextLineText,
-            isPlaying: isPlaying,
-            progress: normalizedProgress
         )
     }
 
@@ -453,8 +431,4 @@ final class LyricsViewModel {
         return lyrics.lines[index + 1].text
     }
 
-    private var normalizedProgress: Double {
-        guard let duration = currentSong?.duration, duration > 0 else { return 0 }
-        return min(1, playbackPosition / duration)
-    }
 }
