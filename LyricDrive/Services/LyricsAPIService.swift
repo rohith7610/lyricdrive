@@ -88,6 +88,24 @@ private enum SongQueryNormalizer {
         return score
     }
 
+    static func score(track: LRCLibTrack, query: String) -> Int {
+        let target = normalizedKey(cleanTitle(query))
+        let trackTitle = normalizedKey(cleanTitle(track.trackName, artist: track.artistName))
+        let trackArtist = normalizedKey(track.artistName)
+        let combined = normalizedKey("\(track.artistName) \(track.trackName)")
+
+        var score = 0
+        if trackTitle == target { score += 90 }
+        else if combined == target { score += 85 }
+        else if combined.contains(target) || target.contains(combined) { score += 45 }
+        else if trackTitle.contains(target) || target.contains(trackTitle) { score += 40 }
+        if !trackArtist.isEmpty, target.contains(trackArtist) { score += 25 }
+        if track.syncedLyrics?.isEmpty == false { score += 10 }
+        if track.plainLyrics?.isEmpty == false { score += 5 }
+        score -= LyricsTextSanitizer.qualityPenalty(track.syncedLyrics ?? track.plainLyrics)
+        return score
+    }
+
     static func isUnknownArtist(_ artist: String) -> Bool {
         let cleaned = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty
@@ -259,6 +277,10 @@ actor LyricsAPIService {
             source: song.source
         )
 
+        if let result = try await searchBestLRCLibMatch(title: normalizedSong.title, artist: normalizedSong.artist) {
+            return LyricsResult(song: normalizedSong, lyrics: result, provider: .lrcLib)
+        }
+
         if let result = try await searchLRCLib(
             title: normalizedSong.title,
             artist: normalizedSong.artist,
@@ -285,7 +307,10 @@ actor LyricsAPIService {
         return tracks
             .filter(trackHasLyrics)
             .sorted { lhs, rhs in
-                (lhs.syncedLyrics?.isEmpty == false ? 0 : 1) < (rhs.syncedLyrics?.isEmpty == false ? 0 : 1)
+                let lhsScore = SongQueryNormalizer.score(track: lhs, query: trimmed)
+                let rhsScore = SongQueryNormalizer.score(track: rhs, query: trimmed)
+                if lhsScore != rhsScore { return lhsScore > rhsScore }
+                return (lhs.syncedLyrics?.isEmpty == false ? 0 : 1) < (rhs.syncedLyrics?.isEmpty == false ? 0 : 1)
             }
             .prefix(50)
             .map { track in
@@ -355,6 +380,10 @@ actor LyricsAPIService {
     }
 
     private func fallbackSearch(title: String, artist: String) async throws -> ParsedLyrics? {
+        return try await searchBestLRCLibMatch(title: title, artist: artist)
+    }
+
+    private func searchBestLRCLibMatch(title: String, artist: String) async throws -> ParsedLyrics? {
         for query in SongQueryNormalizer.searchQueries(title: title, artist: artist) {
             guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                   let url = URL(string: "\(baseURL)/search?q=\(encoded)") else {
@@ -370,6 +399,10 @@ actor LyricsAPIService {
                 }
 
             if let track = ranked.first {
+                let score = SongQueryNormalizer.score(track: track, title: title, artist: artist)
+                guard score >= 40 || SongQueryNormalizer.isUnknownArtist(artist) else {
+                    continue
+                }
                 let parsed = parseTrack(track)
                 if hasLyrics(parsed) {
                     return parsed
