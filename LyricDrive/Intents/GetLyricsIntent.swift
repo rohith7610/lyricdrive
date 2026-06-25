@@ -6,7 +6,7 @@ struct GetLyricsIntent: AppIntent {
     static var description = IntentDescription("Returns the current LyricDrive lyric line.")
     static var openAppWhenRun = false
 
-    func perform() async throws -> IntentResultContainer<String> {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let snapshot = SharedCurrentLyricStore.read()
         if snapshot.updatedAt != .distantPast,
            !snapshot.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
