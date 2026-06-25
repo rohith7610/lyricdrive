@@ -28,7 +28,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     }
 }
 
-/// CarPlay UI — large synced lyrics for driving.
+/// CarPlay UI for large synced lyrics while driving.
 @MainActor
 final class CarPlayLyricsCoordinator {
     private weak var interfaceController: CPInterfaceController?
@@ -97,7 +97,7 @@ final class CarPlayLyricsCoordinator {
         return CPTabBarTemplate(templates: [widgetTab, lyricsTab, libraryTab])
     }
 
-    /// CarPlay "widget-style" screen — one large current line for glancing while driving.
+    /// CarPlay widget-style screen with one large current line for glancing while driving.
     private func buildCarWidgetTemplate() -> CPInformationTemplate {
         let vm = container.lyricsViewModel
         let song = vm.currentSong
@@ -110,9 +110,9 @@ final class CarPlayLyricsCoordinator {
         switch vm.loadingState {
         case .loaded, .offline:
             if let line = vm.activeLine?.text {
-                items.append(CPInformationItem(title: "♪", detail: line))
+                items.append(CPInformationItem(title: "Now", detail: line))
             } else if let plain = vm.displayLyrics.plainText {
-                items.append(CPInformationItem(title: "♪", detail: String(plain.prefix(160))))
+                items.append(CPInformationItem(title: "Now", detail: String(plain.prefix(160))))
             } else {
                 items.append(CPInformationItem(title: "Lyrics", detail: "No lines loaded"))
             }
@@ -139,14 +139,12 @@ final class CarPlayLyricsCoordinator {
         let song = vm.currentSong
         let items = buildLyricsItems(for: vm)
 
-        let screenTitle = song?.title ?? "LyricDrive"
-        let template = CPInformationTemplate(
-            title: screenTitle,
+        return CPInformationTemplate(
+            title: song?.title ?? "LyricDrive",
             layout: .leading,
             items: items,
             actions: []
         )
-        return template
     }
 
     private func buildLyricsItems(for vm: LyricsViewModel) -> [CPInformationItem] {
@@ -158,17 +156,17 @@ final class CarPlayLyricsCoordinator {
 
         switch vm.loadingState {
         case .loading, .recognizing:
-            items.append(CPInformationItem(title: "Status", detail: "Loading lyrics…"))
+            items.append(CPInformationItem(title: "Status", detail: "Loading lyrics..."))
         case .error(let message):
             items.append(CPInformationItem(title: "Error", detail: message))
             items.append(CPInformationItem(
                 title: "Tip",
-                detail: "On your iPhone: Search tab → tap a song. Lyrics appear here automatically."
+                detail: "On your iPhone: search and tap a song. Lyrics appear here automatically."
             ))
         case .idle:
             items.append(CPInformationItem(
                 title: "No song loaded",
-                detail: "On your iPhone open LyricDrive → Search → tap the song you are playing."
+                detail: "On your iPhone open LyricDrive, search, then tap the song you are playing."
             ))
         case .loaded, .offline:
             appendLoadedLyricsItems(to: &items, vm: vm)
@@ -187,7 +185,7 @@ final class CarPlayLyricsCoordinator {
         if lyrics.isSynced, !lyrics.lines.isEmpty {
             let index = vm.displayLineIndex
             let current = lyrics.lines[index]
-            items.append(CPInformationItem(title: "♪ NOW", detail: current.text))
+            items.append(CPInformationItem(title: "Now", detail: current.text))
 
             if index + 1 < lyrics.lines.count {
                 items.append(CPInformationItem(title: "Next", detail: lyrics.lines[index + 1].text))
@@ -246,4 +244,3 @@ final class CarPlayLyricsCoordinator {
         )
     }
 }
-

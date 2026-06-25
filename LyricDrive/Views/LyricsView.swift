@@ -15,11 +15,12 @@ struct LyricsView: View {
 
                 switch viewModel.loadingState {
                 case .idle:
-                    EmptyStateView(
-                        title: "Waiting for Music",
-                        message: viewModel.userHint ?? "Start music in another app, then return here.",
-                        actionTitle: "Detect Song",
-                        action: requestShazam
+                    LyricsStartView(
+                        hint: viewModel.userHint,
+                        onDetect: requestShazam,
+                        onSelectSong: { song in
+                            Task { await viewModel.loadSongFromSearch(song) }
+                        }
                     )
                 case .loading, .recognizing:
                     LoadingView(isRecognizing: viewModel.loadingState == .recognizing)
@@ -37,7 +38,7 @@ struct LyricsView: View {
                             )
 
                             if viewModel.isTranslating {
-                                ProgressView("Translating to English…")
+                                ProgressView("Translating to English...")
                                     .padding()
                                     .background(.ultraThinMaterial)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -75,13 +76,13 @@ struct LyricsView: View {
                             }
                         }
                         .accessibilityLabel("Translate to English")
-                    }
 
-                    Button {
-                        viewModel.toggleFavorite()
-                    } label: {
-                        Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
-                            .foregroundStyle(themeManager.currentTheme.accentColor)
+                        Button {
+                            viewModel.toggleFavorite()
+                        } label: {
+                            Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+                                .foregroundStyle(themeManager.currentTheme.accentColor)
+                        }
                     }
 
                     Menu {
@@ -103,12 +104,7 @@ struct LyricsView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 4) {
-                    Text("Use Detect Song or Search tab")
-                        .font(.caption2)
-                        .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                if viewModel.currentSong != nil {
                     MediaControlsBar(
                         isPlaying: viewModel.isPlaying,
                         onPlayPause: viewModel.togglePlayPause,
@@ -136,6 +132,141 @@ struct LyricsView: View {
     private var isOffline: Bool {
         if case .offline = viewModel.loadingState { return true }
         return false
+    }
+}
+
+struct LyricsStartView: View {
+    let hint: String?
+    let onDetect: () -> Void
+    let onSelectSong: (Song) -> Void
+
+    @Environment(SearchViewModel.self) private var searchViewModel
+    @Environment(ThemeManager.self) private var themeManager
+
+    var body: some View {
+        @Bindable var searchViewModel = searchViewModel
+
+        ScrollView {
+            VStack(spacing: 22) {
+                VStack(spacing: 10) {
+                    Image(systemName: "music.mic")
+                        .font(.system(size: 52, weight: .semibold))
+                        .foregroundStyle(themeManager.currentTheme.accentColor)
+
+                    Text("Load Lyrics")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(themeManager.currentTheme.primaryTextColor)
+
+                    Text(hint ?? "Search the song playing in YouTube Music, Spotify, or Apple Music.")
+                        .font(.body)
+                        .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .padding(.horizontal, 16)
+                }
+                .padding(.top, 34)
+
+                VStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+
+                        TextField("Song or artist", text: $searchViewModel.query)
+                            .textInputAutocapitalization(.words)
+                            .submitLabel(.search)
+                            .onSubmit { Task { await searchViewModel.search() } }
+
+                        if searchViewModel.isSearching {
+                            ProgressView()
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.10))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                    Button {
+                        Task { await searchViewModel.search() }
+                    } label: {
+                        Label("Search Lyrics", systemImage: "magnifyingglass")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(themeManager.currentTheme.accentColor)
+                    .foregroundStyle(.black)
+                    .disabled(searchViewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    Button {
+                        onDetect()
+                    } label: {
+                        Label("Try Shazam Detect", systemImage: "waveform")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(themeManager.currentTheme.accentColor)
+                }
+                .padding(.horizontal, 24)
+
+                if let error = searchViewModel.errorMessage {
+                    Text(error)
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
+                if searchViewModel.hasSearched,
+                   searchViewModel.results.isEmpty,
+                   !searchViewModel.isSearching,
+                   searchViewModel.errorMessage == nil {
+                    Text("No lyrics found. Try adding the artist name or checking the song spelling.")
+                        .font(.callout)
+                        .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
+                if !searchViewModel.results.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Results")
+                            .font(.headline)
+                            .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                            .padding(.horizontal, 24)
+
+                        LazyVStack(spacing: 10) {
+                            ForEach(searchViewModel.results.prefix(8)) { song in
+                                Button {
+                                    onSelectSong(song)
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(song.title)
+                                                .font(.headline)
+                                                .foregroundStyle(themeManager.currentTheme.primaryTextColor)
+                                                .lineLimit(1)
+                                            Text(song.displaySubtitle)
+                                                .font(.subheadline)
+                                                .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                                                .lineLimit(1)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
+                                    }
+                                    .padding(14)
+                                    .background(Color.white.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                }
+            }
+            .padding(.bottom, 24)
+        }
     }
 }
 

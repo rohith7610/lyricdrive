@@ -188,15 +188,7 @@ final class LyricsViewModel {
         }
 
         loadingState = .idle
-        userHint = """
-        Song info still not visible.
-
-        1. Play music in Spotify or Apple Music
-        2. Open Control Center — confirm the song title shows there
-        3. Tap Detect Song again
-
-        Or open the Search tab — it never pauses your music.
-        """
+        userHint = "Song info is not visible to LyricDrive. Tap Detect Song to listen with Shazam, or search manually."
     }
 
     func loadSong(_ song: Song, source: SongSource = .manualSearch) async {
@@ -208,7 +200,7 @@ final class LyricsViewModel {
         await fetchLyrics(for: song)
     }
 
-    /// Search results include LRCLIB track IDs — fetch lyrics directly for reliable loading.
+    /// Search results include LRCLIB track IDs; fetch lyrics directly for reliable loading.
     func loadSongFromSearch(_ song: Song) async {
         tabRouter.showLyricsTab()
         currentSong = song
@@ -236,8 +228,7 @@ final class LyricsViewModel {
     func recognizeWithShazam(isAutomatic: Bool = false) async {
         guard !isShazamRunning else { return }
 
-        // Manual tap: try Now Playing first — no microphone, music keeps playing.
-        if !isAutomatic {
+        if isAutomatic {
             nowPlayingService.refresh()
             if let song = nowPlayingService.state.song {
                 AppLogger.nowPlaying.info("Detected via Now Playing before Shazam")
@@ -315,21 +306,9 @@ final class LyricsViewModel {
 
     private func updateIdleHint() {
         if nowPlayingService.otherAudioIsPlaying {
-            userHint = """
-            Music is playing but song info isn't visible to LyricDrive.
-
-            1. Open Control Center — confirm the song title shows
-            2. Return here and tap Refresh (⋯ menu)
-            3. Or use the Search tab to find the song
-            """
+            userHint = "Music is playing, but iOS is not sharing the song title. Tap Detect Song to identify it with Shazam."
         } else {
-            userHint = """
-            1. Start a song in Spotify, Apple Music, or YouTube Music
-            2. Open Control Center to confirm the track name appears
-            3. Return to LyricDrive — lyrics load automatically
-
-            Or use the Search tab to find any song manually.
-            """
+            userHint = "Start a song, then tap Detect Song. You can also search manually without interrupting playback."
         }
     }
 

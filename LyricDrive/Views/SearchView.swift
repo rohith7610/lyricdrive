@@ -10,15 +10,6 @@ struct SearchView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("1. Search for your song and tap a result.")
-                    Text("2. Lyrics appear on the Lyrics tab.")
-                    Text("3. Synced lyrics auto-scroll when timing data is available.")
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("How to load lyrics")
-                }
-
-                Section {
                     HStack {
                         TextField("Artist and song name", text: $viewModel.query)
                             .textInputAutocapitalization(.words)
@@ -45,7 +36,7 @@ struct SearchView: View {
 
                 Section("Results") {
                     if viewModel.results.isEmpty && !viewModel.isSearching {
-                        Text("Example: Taylor Swift Cruel Summer")
+                        Text("Search for the song playing in YouTube Music, Spotify, or Apple Music.")
                             .foregroundStyle(.secondary)
                     }
 

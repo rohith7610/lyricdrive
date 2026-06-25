@@ -33,7 +33,7 @@ struct ContentView: View {
         .tint(themeAccent)
         .overlay(alignment: .top) {
             if let startupError {
-                Text("Storage warning: \(startupError) — using temporary in-memory cache.")
+                Text("Storage warning: \(startupError) - using temporary in-memory cache.")
                     .font(.caption)
                     .padding(8)
                     .frame(maxWidth: .infinity)

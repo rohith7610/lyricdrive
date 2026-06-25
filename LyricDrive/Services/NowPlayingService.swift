@@ -78,7 +78,8 @@ final class NowPlayingService: ObservableObject {
         let rate = info?[MPNowPlayingInfoPropertyPlaybackRate] as? Double ?? 0
         let position = info?[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? TimeInterval ?? 0
 
-        otherAudioIsPlaying = !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
+        let audioSession = AVAudioSession.sharedInstance()
+        otherAudioIsPlaying = audioSession.secondaryAudioShouldBeSilencedHint || audioSession.isOtherAudioPlaying
 
         var isPlaying = rate > 0
         if !isPlaying, song != nil, abs(position - lastPosition) > 0.3 {
@@ -96,7 +97,7 @@ final class NowPlayingService: ObservableObject {
         if fingerprint != lastSongFingerprint {
             lastSongFingerprint = fingerprint
             if let song {
-                AppLogger.nowPlaying.info("Track changed: \(song.artist) — \(song.title)")
+                AppLogger.nowPlaying.info("Track changed: \(song.artist) - \(song.title)")
             }
         }
 
@@ -138,7 +139,7 @@ final class NowPlayingService: ObservableObject {
             }.sorted()
             d.rawPreview = lines.joined(separator: "\n")
         } else {
-            d.rawPreview = "(MPNowPlayingInfoCenter returned nil — iOS is not sharing song data with LyricDrive)"
+            d.rawPreview = "(MPNowPlayingInfoCenter returned nil - iOS is not sharing song data with LyricDrive)"
         }
         return d
     }
@@ -193,18 +194,9 @@ final class NowPlayingService: ObservableObject {
 
         guard var resolvedTitle = title, !resolvedTitle.isEmpty else { return nil }
 
-        if (artist == nil || artist?.isEmpty == true), resolvedTitle.contains(" - ") {
-            let parts = resolvedTitle.split(separator: "-", maxSplits: 1).map {
-                $0.trimmingCharacters(in: .whitespaces)
-            }
-            if parts.count == 2 {
-                artist = String(parts[0])
-                resolvedTitle = String(parts[1])
-            }
-        }
-
-        if (artist == nil || artist?.isEmpty == true), resolvedTitle.contains(" — ") {
-            let parts = resolvedTitle.split(separator: "—", maxSplits: 1).map {
+        if artist == nil || artist?.isEmpty == true {
+            let normalizedTitle = resolvedTitle.replacingOccurrences(of: "\u{2014}", with: "-")
+            let parts = normalizedTitle.split(separator: "-", maxSplits: 1).map {
                 $0.trimmingCharacters(in: .whitespaces)
             }
             if parts.count == 2 {

@@ -34,7 +34,7 @@ struct Song: Identifiable, Hashable, Codable, Sendable {
 
     var displaySubtitle: String {
         if let album, !album.isEmpty {
-            return "\(artist) · \(album)"
+            return "\(artist) - \(album)"
         }
         return artist
     }

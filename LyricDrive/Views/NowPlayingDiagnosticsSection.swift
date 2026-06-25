@@ -5,8 +5,8 @@ struct NowPlayingDiagnosticsSection: View {
     @ObservedObject var nowPlaying: NowPlayingService
 
     var body: some View {
-        Section("Now Playing Diagnostics") {
-            Button("Refresh Detection") {
+        Section("Detection") {
+            Button("Refresh Now Playing") {
                 nowPlaying.refresh()
             }
 
@@ -21,16 +21,16 @@ struct NowPlayingDiagnosticsSection: View {
                 LabeledContent("Artist", value: artist)
             }
 
-            LabeledContent("iOS shared metadata") {
+            LabeledContent("Shared by iOS") {
                 Text(d.hasNowPlayingDictionary ? "Yes" : "No")
                     .foregroundStyle(d.hasNowPlayingDictionary ? .green : .orange)
             }
 
-            LabeledContent("System playback") {
+            LabeledContent("Playback") {
                 Text(d.systemPlaybackState)
             }
 
-            LabeledContent("Other audio playing") {
+            LabeledContent("Audio active") {
                 Text(d.otherAudioIsPlaying ? "Yes" : "No")
             }
 
@@ -39,17 +39,9 @@ struct NowPlayingDiagnosticsSection: View {
             }
 
             if !d.hasNowPlayingDictionary && d.extractedTitle == nil {
-                Text("""
-                iOS is not sharing song info with LyricDrive.
-
-                Try this:
-                1. Play music in Spotify/Apple Music
-                2. Open Control Center — confirm song title shows
-                3. Switch to LyricDrive and tap Refresh Detection
-                4. If still empty, use the Search tab (always works)
-                """)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text("iOS is not sharing song info. Use Detect Song on the Lyrics tab or search manually.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             DisclosureGroup("Raw system data") {

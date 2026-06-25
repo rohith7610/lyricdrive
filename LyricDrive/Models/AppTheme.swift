@@ -42,7 +42,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
 
     var accentColor: Color {
         switch self {
-        case .amoledBlack: return Color.white
+        case .amoledBlack: return Color(red: 0.18, green: 0.86, blue: 0.42)
         case .carDashboardRed: return Color(red: 1.0, green: 0.2, blue: 0.15)
         case .neonBlue: return Color(red: 0.2, green: 0.7, blue: 1.0)
         case .minimalWhite: return Color(red: 0.1, green: 0.45, blue: 0.95)

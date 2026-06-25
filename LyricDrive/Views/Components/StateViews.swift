@@ -5,14 +5,21 @@ struct EmptyStateView: View {
     let message: String
     var actionTitle: String?
     var action: (() -> Void)?
+    var secondaryActionTitle: String?
+    var secondaryAction: (() -> Void)?
 
     @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "music.quarternote.3")
-                .font(.system(size: 64))
-                .foregroundStyle(themeManager.currentTheme.accentColor.opacity(0.7))
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(themeManager.currentTheme.accentColor.opacity(0.14))
+                    .frame(width: 96, height: 96)
+                Image(systemName: "waveform")
+                    .font(.system(size: 42, weight: .semibold))
+                    .foregroundStyle(themeManager.currentTheme.accentColor)
+            }
 
             Text(title)
                 .font(.title2.bold())
@@ -23,13 +30,30 @@ struct EmptyStateView: View {
                 .foregroundStyle(themeManager.currentTheme.secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+                .lineSpacing(4)
 
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
+                Button(action: action) {
+                    Label(actionTitle, systemImage: "waveform")
+                        .font(.headline)
+                        .frame(maxWidth: 240)
+                }
                     .buttonStyle(.borderedProminent)
+                    .tint(themeManager.currentTheme.accentColor)
+                    .foregroundStyle(.black)
+                    .controlSize(.large)
+            }
+
+            if let secondaryActionTitle, let secondaryAction {
+                Button(action: secondaryAction) {
+                    Label(secondaryActionTitle, systemImage: "magnifyingglass")
+                        .frame(maxWidth: 240)
+                }
+                    .buttonStyle(.bordered)
                     .tint(themeManager.currentTheme.accentColor)
             }
         }
+        .padding(.horizontal, 20)
     }
 }
 
@@ -73,6 +97,8 @@ struct ErrorStateView: View {
 
             Button("Detect Song", action: retry)
                 .buttonStyle(.borderedProminent)
+                .tint(themeManager.currentTheme.accentColor)
+                .foregroundStyle(.black)
         }
     }
 }

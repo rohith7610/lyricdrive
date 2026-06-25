@@ -67,16 +67,22 @@ actor LyricsAPIService {
         }
 
         let tracks = try await fetchLRCLibSearch(url: url)
-        return tracks.prefix(50).map { track in
-            Song(
-                id: "lrclib-\(track.id)",
-                title: track.trackName,
-                artist: track.artistName,
-                album: track.albumName,
-                duration: track.duration,
-                source: .manualSearch
-            )
-        }
+        return tracks
+            .filter(trackHasLyrics)
+            .sorted { lhs, rhs in
+                (lhs.syncedLyrics?.isEmpty == false ? 0 : 1) < (rhs.syncedLyrics?.isEmpty == false ? 0 : 1)
+            }
+            .prefix(50)
+            .map { track in
+                Song(
+                    id: "lrclib-\(track.id)",
+                    title: track.trackName,
+                    artist: track.artistName,
+                    album: track.albumName,
+                    duration: track.duration,
+                    source: .manualSearch
+                )
+            }
     }
 
     func fetchLyricsForTrackID(_ trackID: Int, song: Song) async throws -> LyricsResult {
@@ -174,6 +180,10 @@ actor LyricsAPIService {
 
     private func hasLyrics(_ lyrics: ParsedLyrics) -> Bool {
         !lyrics.lines.isEmpty || lyrics.plainText?.isEmpty == false
+    }
+
+    private func trackHasLyrics(_ track: LRCLibTrack) -> Bool {
+        track.syncedLyrics?.isEmpty == false || track.plainLyrics?.isEmpty == false
     }
 
     private func isUnknownArtist(_ artist: String) -> Bool {

@@ -7,6 +7,7 @@ final class SearchViewModel {
     var results: [Song] = []
     var isSearching = false
     var errorMessage: String?
+    var hasSearched = false
 
     private let lyricsAPIService: LyricsAPIService
     private let lrcParser: LRCParser
@@ -32,6 +33,7 @@ final class SearchViewModel {
 
         isSearching = true
         errorMessage = nil
+        hasSearched = true
         defer { isSearching = false }
 
         do {
@@ -46,5 +48,6 @@ final class SearchViewModel {
         query = ""
         results = []
         errorMessage = nil
+        hasSearched = false
     }
 }

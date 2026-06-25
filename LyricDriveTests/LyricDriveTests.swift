@@ -108,7 +108,7 @@ struct SongModelTests {
     @Test("Display subtitle includes album when available")
     func displaySubtitle() {
         let song = Song(title: "Test", artist: "Artist", album: "Album")
-        #expect(song.displaySubtitle == "Artist · Album")
+        #expect(song.displaySubtitle == "Artist - Album")
     }
 
     @Test("Trims whitespace in titles")

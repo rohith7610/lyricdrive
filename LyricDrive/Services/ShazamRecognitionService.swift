@@ -88,11 +88,11 @@ actor ShazamRecognitionService {
             mode: .measurement,
             options: [.mixWithOthers, .allowBluetooth, .allowBluetoothA2DP]
         )
-        // Do not use defaultToSpeaker — it can reroute music away from headphones/speakers.
+        // Do not use defaultToSpeaker; it can reroute music away from headphones/speakers.
         try audioSession.setActive(true, options: [])
     }
 
-    /// Never call setActive(false) — that pauses other apps' music.
+    /// Never call setActive(false); that pauses other apps' music.
     private func restoreAudioSession(
         category: AVAudioSession.Category,
         mode: AVAudioSession.Mode,
@@ -173,7 +173,7 @@ private final class ShazamDelegate: NSObject, SHSessionDelegate, @unchecked Send
             artworkURL: mediaItem.artworkURL,
             source: .shazam
         )
-        AppLogger.shazam.info("Matched: \(song.artist) — \(song.title)")
+        AppLogger.shazam.info("Matched: \(song.artist) - \(song.title)")
         continuation?.resume(returning: song)
         cleanup()
     }

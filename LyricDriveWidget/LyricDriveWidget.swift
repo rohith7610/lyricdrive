@@ -18,7 +18,7 @@ struct LyricLockScreenWidget: Widget {
         }
         .configurationDisplayName("LyricDrive")
         .description("Shows the latest lyric line from LyricDrive.")
-        .supportedFamilies([.accessoryRectangular, .accessoryInline, .systemSmall])
+        .supportedFamilies([.accessoryRectangular, .accessoryInline, .systemSmall, .systemMedium, .systemLarge])
     }
 }
 
